@@ -1,149 +1,856 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Easy UniFi App Blocker</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parental Controls - UniFi Quick Set</title>
     <style>
-        .hidden { display: none; }
-        label { display: block; margin-top: 10px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            padding: 30px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .card-header h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"], 
+        input[type="password"], 
+        select, 
+        input[type="datetime-local"],
+        input[type="number"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(81, 207, 102, 0.4);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ffd43b 0%, #fab005 100%);
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 212, 59, 0.4);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d3f9d8;
+            color: #2b8a3e;
+            border: 2px solid #51cf66;
+        }
+
+        .status.error {
+            background: #ffe0e0;
+            color: #c92a2a;
+            border: 2px solid #ff6b6b;
+        }
+
+        .status.info {
+            background: #d0ebff;
+            color: #1971c2;
+            border: 2px solid #339af0;
+        }
+
+        .rules-list {
+            margin-top: 30px;
+        }
+
+        .rule-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .rule-item:hover {
+            background: #e9ecef;
+        }
+
+        .rule-item.blocked {
+            border-left-color: #ff6b6b;
+        }
+
+        .rule-item.active {
+            border-left-color: #51cf66;
+        }
+
+        .rule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .rule-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .rule-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .rule-status.blocked {
+            background: #ffe0e0;
+            color: #c92a2a;
+        }
+
+        .rule-status.active {
+            background: #d3f9d8;
+            color: #2b8a3e;
+        }
+
+        .rule-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .rule-actions .btn {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .quick-action {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .quick-action:hover {
+            transform: translateY(-5px);
+        }
+
+        .quick-action .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .quick-action h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .quick-action p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .card-header, .card-body {
+                padding: 20px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .rule-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .rule-actions {
+                flex-wrap: wrap;
+            }
+
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .app-icon {
+            display: inline-block;
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .schedule-info {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .device-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .device-tag {
+            background: #e9ecef;
+            color: #495057;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
-    <h1>Easy UniFi App Blocker</h1>
-    <p>Simple tool to block apps like Fortnite, Roblox, or YouTube on your network. Login first, then create rules.</p>
-    
-    <h2>Step 1: Login to UniFi</h2>
-    <form id="login-form">
-        <label>Username:</label>
-        <input type="text" id="username" placeholder="Your UniFi username" required>
-        <label>Password:</label>
-        <input type="password" id="password" placeholder="Your UniFi password" required>
-        <button type="submit">Login</button>
-    </form>
-    
-    <h2>Step 2: Create a Blocking Rule</h2>
-    <form id="rule-form">
-        <label>Apps to Block:</label>
-        <select id="apps" multiple required>
-            <option value="Fortnite">Fortnite</option>
-            <option value="Roblox">Roblox</option>
-            <option value="YouTube">YouTube</option>
-            <!-- Add more options here if needed -->
-        </select>
-        <p>Hold Ctrl (Windows) or Cmd (Mac) to select multiple.</p>
-        
-        <label>Block Type:</label>
-        <input type="radio" id="permanent" name="block_type" value="permanent" checked> Permanent (always blocked)<br>
-        <input type="radio" id="hourly" name="block_type" value="hourly"> Block for a specific duration (e.g., 1 hour)<br>
-        <input type="radio" id="until" name="block_type" value="until"> Block until a specific time (e.g., 4:30 PM)<br>
-        <input type="radio" id="recurring" name="block_type" value="recurring"> Recurring schedule (daily/weekly)
-        
-        <div id="hourly-fields" class="hidden">
-            <label>Duration (hours):</label>
-            <input type="number" id="duration_hours" placeholder="1" min="0.5" step="0.5" required>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Parental Controls</h1>
+            <p>Simple, powerful controls for your family's internet</p>
         </div>
-        
-        <div id="until-fields" class="hidden">
-            <label>Until Time (HH:MM):</label>
-            <input type="text" id="until_time" placeholder="16:30" required>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="card">
+            <div class="card-header">
+                <h2>Connect to UniFi</h2>
+                <p>Sign in to your UniFi controller to manage network rules</p>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="unifiUrl">UniFi Controller URL</label>
+                    <input type="text" id="unifiUrl" placeholder="https://192.168.1.1:8443" value="https://192.168.1.1:8443">
+                </div>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="parental-control-app">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Your secure password">
+                </div>
+                <button class="btn btn-primary" onclick="login()">Connect</button>
+                <div id="loginStatus"></div>
+            </div>
         </div>
-        
-        <div id="recurring-fields" class="hidden">
-            <label>Days (comma-separated, e.g., monday,tuesday or all):</label>
-            <input type="text" id="recurring_days" placeholder="monday,tuesday" required>
-            <label>Start Time (HH:MM):</label>
-            <input type="text" id="recurring_start" placeholder="21:00" required>
-            <label>End Time (HH:MM):</label>
-            <input type="text" id="recurring_end" placeholder="08:00" required>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard" class="hidden">
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <div class="quick-action" onclick="quickBlock('fortnite')">
+                    <div class="icon">🎮</div>
+                    <h3>Block Gaming</h3>
+                    <p>Block Fortnite, Roblox instantly</p>
+                </div>
+                <div class="quick-action" onclick="quickBlock('youtube')">
+                    <div class="icon">📺</div>
+                    <h3>Block Videos</h3>
+                    <p>Block YouTube, TikTok, streaming</p>
+                </div>
+                <div class="quick-action" onclick="showScheduler()">
+                    <div class="icon">⏰</div>
+                    <h3>Schedule Rules</h3>
+                    <p>Set bedtime, homework hours</p>
+                </div>
+                <div class="quick-action" onclick="unblockAll()">
+                    <div class="icon">✅</div>
+                    <h3>Unblock All</h3>
+                    <p>Remove all active blocks</p>
+                </div>
+            </div>
+
+            <!-- Create New Rule -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Create Blocking Rule</h2>
+                    <p>Block apps and websites with flexible scheduling</p>
+                </div>
+                <div class="card-body">
+                    <div class="grid">
+                        <div>
+                            <div class="form-group">
+                                <label for="appSelect">Apps to Block</label>
+                                <select id="appSelect" multiple>
+                                    <option value="fortnite">🎮 Fortnite</option>
+                                    <option value="roblox">🟩 Roblox</option>
+                                    <option value="youtube">📺 YouTube</option>
+                                    <option value="tiktok">🎵 TikTok</option>
+                                    <option value="instagram">📷 Instagram</option>
+                                    <option value="snapchat">👻 Snapchat</option>
+                                    <option value="netflix">🎬 Netflix</option>
+                                    <option value="twitch">🎮 Twitch</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="blockType">Block Type</label>
+                                <select id="blockType" onchange="toggleScheduleOptions()">
+                                    <option value="permanent">🚫 Permanent Block</option>
+                                    <option value="duration">⏱️ Block for Duration</option>
+                                    <option value="until">🕐 Block Until Time</option>
+                                    <option value="schedule">📅 Recurring Schedule</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="form-group" id="durationGroup" style="display: none;">
+                                <label for="duration">Duration (hours)</label>
+                                <input type="number" id="duration" min="1" max="24" value="2">
+                            </div>
+                            <div class="form-group" id="untilGroup" style="display: none;">
+                                <label for="untilTime">Block Until</label>
+                                <input type="datetime-local" id="untilTime">
+                            </div>
+                            <div class="form-group" id="scheduleGroup" style="display: none;">
+                                <label for="scheduleType">Schedule Type</label>
+                                <select id="scheduleType">
+                                    <option value="bedtime">😴 Bedtime (8 PM - 7 AM)</option>
+                                    <option value="homework">📚 Homework Time (3 PM - 6 PM)</option>
+                                    <option value="weekday">📅 School Days Only</option>
+                                    <option value="weekend">🎉 Weekends Only</option>
+                                    <option value="custom">⚙️ Custom Schedule</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="deviceSelect">Devices (Optional)</label>
+                                <select id="deviceSelect" multiple>
+                                    <option value="all">All Devices</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" onclick="createRule()">🚫 Create Block Rule</button>
+                </div>
+            </div>
+
+            <!-- Active Rules -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Active Rules</h2>
+                    <p>Manage your current blocking rules</p>
+                </div>
+                <div class="card-body">
+                    <div id="rulesContainer">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Loading rules...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <label>Networks to Block On:</label>
-        <select id="networks" multiple required></select>
-        <p>Networks will load after login.</p>
-        
-        <label>Devices to Block:</label>
-        <select id="devices" multiple required></select>
-        <p>Devices will load after login. Select by name; blocks by MAC.</p>
-        
-        <button type="submit">Create Rule</button>
-    </form>
-    
-    <div id="response"></div>
-    
+
+        <div id="status"></div>
+    </div>
+
     <script>
-        // Handle form visibility based on block type
-        const blockTypes = document.querySelectorAll('input[name="block_type"]');
-        blockTypes.forEach(type => {
-            type.addEventListener('change', () => {
-                document.getElementById('hourly-fields').classList.add('hidden');
-                document.getElementById('until-fields').classList.add('hidden');
-                document.getElementById('recurring-fields').classList.add('hidden');
-                if (type.value === 'hourly') document.getElementById('hourly-fields').classList.remove('hidden');
-                if (type.value === 'until') document.getElementById('until-fields').classList.remove('hidden');
-                if (type.value === 'recurring') document.getElementById('recurring-fields').classList.remove('hidden');
-            });
+        let currentSession = null;
+        let activeRules = [];
+
+        // App Icons Mapping
+        const appIcons = {
+            'fortnite': '🎮',
+            'roblox': '🟩',
+            'youtube': '📺',
+            'tiktok': '🎵',
+            'instagram': '📷',
+            'snapchat': '👻',
+            'netflix': '🎬',
+            'twitch': '🎮'
+        };
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedRules();
+            setDefaultDateTime();
         });
 
-        // Fetch and populate networks and devices after login
-        async function loadData() {
-            const networksRes = await fetch('/api/networks');
-            const networks = await networksRes.json();
-            const networkSelect = document.getElementById('networks');
-            networkSelect.innerHTML = '';
-            networks.forEach(net => {
-                const option = document.createElement('option');
-                option.value = net.vlan_id || net.name;  // Use VLAN or name
-                option.textContent = net.name + (net.vlan_id ? ` (VLAN ${net.vlan_id})` : '');
-                networkSelect.appendChild(option);
-            });
-
-            const clientsRes = await fetch('/api/clients');
-            const clients = await clientsRes.json();
-            const deviceSelect = document.getElementById('devices');
-            deviceSelect.innerHTML = '';
-            clients.forEach(client => {
-                const option = document.createElement('option');
-                option.value = client.mac;
-                option.textContent = client.hostname || client.mac;
-                deviceSelect.appendChild(option);
-            });
+        function setDefaultDateTime() {
+            const now = new Date();
+            now.setHours(now.getHours() + 2); // Default to 2 hours from now
+            document.getElementById('untilTime').value = now.toISOString().slice(0, 16);
         }
 
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        function toggleScheduleOptions() {
+            const blockType = document.getElementById('blockType').value;
+            
+            // Hide all schedule options
+            document.getElementById('durationGroup').style.display = 'none';
+            document.getElementById('untilGroup').style.display = 'none';
+            document.getElementById('scheduleGroup').style.display = 'none';
+            
+            // Show relevant option
+            if (blockType === 'duration') {
+                document.getElementById('durationGroup').style.display = 'block';
+            } else if (blockType === 'until') {
+                document.getElementById('untilGroup').style.display = 'block';
+            } else if (blockType === 'schedule') {
+                document.getElementById('scheduleGroup').style.display = 'block';
+            }
+        }
+
+        async function login() {
+            const url = document.getElementById('unifiUrl').value;
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
-            });
-            const text = await res.text();
-            document.getElementById('response').innerText = text;
-            if (res.ok) loadData();  // Load networks and devices on successful login
-        });
+            
+            showStatus('Connecting to UniFi...', 'info');
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, username, password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentSession = { url, username, password };
+                    showStatus('✅ Connected successfully!', 'success');
+                    document.getElementById('loginSection').classList.add('hidden');
+                    document.getElementById('dashboard').classList.remove('hidden');
+                    loadDevices();
+                    loadRules();
+                } else {
+                    showStatus(`❌ Connection failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Connection error: ${error.message}`, 'error');
+            }
+        }
 
-        document.getElementById('rule-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const appsSelect = document.getElementById('apps');
-            const apps = Array.from(appsSelect.selectedOptions).map(option => option.value);
-            const block_type = document.querySelector('input[name="block_type"]:checked').value;
-            const duration_hours = document.getElementById('duration_hours').value || null;
-            const until_time = document.getElementById('until_time').value || null;
-            const recurring_days = document.getElementById('recurring_days').value ? document.getElementById('recurring_days').value.split(',') : null;
-            const recurring_start = document.getElementById('recurring_start').value || null;
-            const recurring_end = document.getElementById('recurring_end').value || null;
-            const networksSelect = document.getElementById('networks');
-            const networks = Array.from(networksSelect.selectedOptions).map(option => option.value);
-            const devicesSelect = document.getElementById('devices');
-            const devices = Array.from(devicesSelect.selectedOptions).map(option => option.value);
+        async function loadDevices() {
+            try {
+                const response = await fetch('/api/devices');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const deviceSelect = document.getElementById('deviceSelect');
+                    deviceSelect.innerHTML = '<option value="all">All Devices</option>';
+                    
+                    result.devices.forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.mac;
+                        option.textContent = `${device.name || 'Unknown Device'} (${device.mac})`;
+                        deviceSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load devices:', error);
+            }
+        }
 
-            const res = await fetch('/api/create_rule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apps, block_type, duration_hours, until_time, recurring_days, recurring_start, recurring_end, networks, devices }),
+        async function quickBlock(appType) {
+            const apps = {
+                'fortnite': ['fortnite', 'roblox'],
+                'youtube': ['youtube', 'tiktok', 'netflix'],
+                'social': ['instagram', 'snapchat', 'tiktok']
+            };
+            
+            const appsToBlock = apps[appType] || [appType];
+            
+            showStatus(`🚫 Blocking ${appsToBlock.join(', ')}...`, 'info');
+            
+            const rule = {
+                id: Date.now().toString(),
+                apps: appsToBlock,
+                type: 'permanent',
+                devices: ['all'],
+                status: 'active',
+                created: new Date().toISOString()
+            };
+            
+            await createBlockRule(rule);
+        }
+
+        async function createRule() {
+            const apps = Array.from(document.getElementById('appSelect').selectedOptions)
+                .map(option => option.value);
+            const blockType = document.getElementById('blockType').value;
+            const devices = Array.from(document.getElementById('deviceSelect').selectedOptions)
+                .map(option => option.value);
+            
+            if (apps.length === 0) {
+                showStatus('❌ Please select at least one app to block', 'error');
+                return;
+            }
+            
+            const rule = {
+                id: Date.now().toString(),
+                apps: apps,
+                type: blockType,
+                devices: devices.length > 0 ? devices : ['all'],
+                status: 'active',
+                created: new Date().toISOString()
+            };
+            
+            // Add schedule information
+            if (blockType === 'duration') {
+                rule.duration = parseInt(document.getElementById('duration').value);
+                rule.endTime = new Date(Date.now() + rule.duration * 60 * 60 * 1000).toISOString();
+            } else if (blockType === 'until') {
+                rule.endTime = document.getElementById('untilTime').value;
+            } else if (blockType === 'schedule') {
+                rule.scheduleType = document.getElementById('scheduleType').value;
+            }
+            
+            await createBlockRule(rule);
+        }
+
+        async function createBlockRule(rule) {
+            try {
+                activeRules.push(rule);
+                saveRules();
+                displayRules();
+                
+                const response = await fetch('/api/block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rule)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus(`✅ Successfully blocked ${rule.apps.join(', ')}`, 'success');
+                } else {
+                    showStatus(`❌ Failed to create block: ${result.error}`, 'error');
+                    // Remove from local rules if API call failed
+                    activeRules = activeRules.filter(r => r.id !== rule.id);
+                    saveRules();
+                    displayRules();
+                }
+            } catch (error) {
+                showStatus(`❌ Error creating rule: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteRule(ruleId) {
+            const rule = activeRules.find(r => r.id === ruleId);
+            if (!rule) return;
+            
+            try {
+                const response = await fetch('/api/unblock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ruleId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    activeRules = activeRules.filter(r => r.id !== ruleId);
+                    saveRules();
+                    displayRules();
+                    showStatus(`✅ Rule deleted successfully`, 'success');
+                } else {
+                    showStatus(`❌ Failed to delete rule: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Error deleting rule: ${error.message}`, 'error');
+            }
+        }
+
+        async function toggleRule(ruleId) {
+            const rule = activeRules.find(r => r.id === ruleId);
+            if (!rule) return;
+            
+            rule.status = rule.status === 'active' ? 'disabled' : 'active';
+            saveRules();
+            displayRules();
+            
+            const action = rule.status === 'active' ? 'block' : 'unblock';
+            showStatus(`${rule.status === 'active' ? '🚫' : '✅'} Rule ${action}ed`, 'success');
+        }
+
+        async function unblockAll() {
+            if (activeRules.length === 0) {
+                showStatus('ℹ️ No active rules to unblock', 'info');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to unblock all rules?')) {
+                try {
+                    const response = await fetch('/api/unblock-all', {
+                        method: 'POST'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        activeRules = [];
+                        saveRules();
+                        displayRules();
+                        showStatus('✅ All rules removed successfully', 'success');
+                    }
+                } catch (error) {
+                    showStatus(`❌ Error removing all rules: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        function displayRules() {
+            const container = document.getElementById('rulesContainer');
+            
+            if (activeRules.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">😴</div>
+                        <h3>No active rules</h3>
+                        <p>Create your first blocking rule above to get started</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = activeRules.map(rule => `
+                <div class="rule-item ${rule.status}">
+                    <div class="rule-header">
+                        <div class="rule-title">
+                            ${rule.apps.map(app => `<span class="app-icon">${appIcons[app] || '📱'}</span>${app.charAt(0).toUpperCase() + app.slice(1)}`).join(', ')}
+                        </div>
+                        <span class="rule-status ${rule.status}">${rule.status}</span>
+                    </div>
+                    <div class="schedule-info">
+                        ${getScheduleDescription(rule)}
+                    </div>
+                    <div class="device-list">
+                        ${rule.devices.includes('all') ? 
+                            '<span class="device-tag">All Devices</span>' : 
+                            rule.devices.map(d => `<span class="device-tag">${d}</span>`).join('')
+                        }
+                    </div>
+                    <div class="rule-actions">
+                        <button class="btn ${rule.status === 'active' ? 'btn-warning' : 'btn-success'}" 
+                                onclick="toggleRule('${rule.id}')">
+                            ${rule.status === 'active' ? '⏸️ Pause' : '▶️ Resume'}
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteRule('${rule.id}')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getScheduleDescription(rule) {
+            switch (rule.type) {
+                case 'permanent':
+                    return '🚫 Blocked permanently';
+                case 'duration':
+                    return `⏱️ Blocked for ${rule.duration} hours`;
+                case 'until':
+                    return `🕐 Blocked until ${new Date(rule.endTime).toLocaleString()}`;
+                case 'schedule':
+                    return `📅 Recurring: ${rule.scheduleType}`;
+                default:
+                    return '';
+            }
+        }
+
+        async function loadRules() {
+            // In a real implementation, this would fetch from the server
+            loadSavedRules();
+            displayRules();
+        }
+
+        function saveRules() {
+            localStorage.setItem('parentalRules', JSON.stringify(activeRules));
+        }
+
+        function loadSavedRules() {
+            const saved = localStorage.getItem('parentalRules');
+            if (saved) {
+                activeRules = JSON.parse(saved);
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        function showScheduler() {
+            // Scroll to the create rule section
+            document.querySelector('.card:nth-child(3)').scrollIntoView({ 
+                behavior: 'smooth' 
             });
-            document.getElementById('response').innerText = await res.text();
-        });
+            document.getElementById('blockType').value = 'schedule';
+            toggleScheduleOptions();
+        }
     </script>
 </body>
 </html>

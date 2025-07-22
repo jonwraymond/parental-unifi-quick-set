@@ -1,277 +1,538 @@
 use axum::{
     extract::{Json, State},
-    http::StatusCode,
-    response::{Html, IntoResponse, Json as AxumJson},
+    response::{Html, IntoResponse},
     routing::{get, post},
     Router,
 };
-use chrono::{Local, NaiveTime, Duration as ChronoDuration};
 use reqwest::{Client, header};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tower_http::services::ServeDir;
 
+// Request/Response structures
+#[derive(Deserialize)]
+struct LoginRequest {
+    url: String,
+    username: String,
+    password: String,
+}
+
+#[derive(Deserialize)]
+struct BlockRule {
+    id: String,
+    apps: Vec<String>,
+    #[serde(rename = "type")]
+    rule_type: String,
+    devices: Vec<String>,
+    status: String,
+    created: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    duration: Option<u32>,
+    #[serde(rename = "endTime", skip_serializing_if = "Option::is_none")]
+    end_time: Option<String>,
+    #[serde(rename = "scheduleType", skip_serializing_if = "Option::is_none")]
+    schedule_type: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct UnblockRequest {
+    #[serde(rename = "ruleId")]
+    rule_id: String,
+}
+
+#[derive(Serialize)]
+struct ApiResponse {
+    success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
+}
+
+#[derive(Serialize)]
+struct DevicesResponse {
+    success: bool,
+    devices: Vec<DeviceInfo>,
+}
+
+#[derive(Serialize)]
+struct DeviceInfo {
+    mac: String,
+    name: Option<String>,
+    #[serde(rename = "type")]
+    device_type: Option<String>,
+}
+
+#[derive(Serialize)]
+struct RulesResponse {
+    success: bool,
+    rules: Vec<ActiveRule>,
+}
+
+#[derive(Serialize, Clone)]
+struct ActiveRule {
+    id: String,
+    apps: Vec<String>,
+    rule_type: String,
+    devices: Vec<String>,
+    status: String,
+    created: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    duration: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    end_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    schedule_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unifi_rule_id: Option<String>, // Track UniFi firewall rule ID
+}
+
+// Application state
 #[derive(Clone)]
 struct AppState {
     client: Client,
-    unifi_url: String,
-    site: String,
-    token: Arc<Mutex<Option<String>>>,
+    unifi_url: Arc<Mutex<Option<String>>>,
+    session_cookies: Arc<Mutex<Option<String>>>,
     app_id_map: HashMap<String, String>,
+    active_rules: Arc<Mutex<Vec<ActiveRule>>>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct Network {
-    name: String,
-    vlan_id: Option<u16>,
-}
+impl AppState {
+    fn new() -> Self {
+        let mut app_id_map = HashMap::new();
+        
+        // Extended app mapping with more popular apps
+        app_id_map.insert("fortnite".to_string(), "655369".to_string());
+        app_id_map.insert("roblox".to_string(), "851993".to_string());
+        app_id_map.insert("youtube".to_string(), "851969".to_string());
+        app_id_map.insert("tiktok".to_string(), "855327".to_string());
+        app_id_map.insert("instagram".to_string(), "655311".to_string());
+        app_id_map.insert("snapchat".to_string(), "655301".to_string());
+        app_id_map.insert("netflix".to_string(), "655324".to_string());
+        app_id_map.insert("twitch".to_string(), "655328".to_string());
+        app_id_map.insert("discord".to_string(), "655365".to_string());
+        app_id_map.insert("minecraft".to_string(), "655370".to_string());
 
-#[derive(Serialize, Deserialize)]
-struct UniFiClient {
-    mac: String,
-    hostname: Option<String>,
-}
-
-#[tokio::main]
-async fn main() {
-    let mut app_id_map = HashMap::new();
-    app_id_map.insert("Fortnite".to_string(), "655369".to_string());
-    app_id_map.insert("Roblox".to_string(), "851993".to_string());
-    app_id_map.insert("YouTube".to_string(), "851969".to_string());
-    // Add more as needed
-
-    let state = AppState {
-        client: Client::builder().danger_accept_invalid_certs(true).build().unwrap(),
-        unifi_url: "https://192.168.1.1:8443".to_string(),  // Update to your UniFi controller
-        site: "default".to_string(),
-        token: Arc::new(Mutex::new(None)),
-        app_id_map,
-    };
-
-    let app = Router::new()
-        .route("/", get(index))
-        .route("/api/login", post(login))
-        .route("/api/create_rule", post(create_rule))
-        .route("/api/networks", get(get_networks))
-        .route("/api/clients", get(get_clients))
-        .nest_service("/static", ServeDir::new("static"))
-        .with_state(Arc::new(state));
-
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3000));
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+        Self {
+            client: Client::builder()
+                .danger_accept_invalid_certs(true)
+                .build()
+                .unwrap(),
+            unifi_url: Arc::new(Mutex::new(None)),
+            session_cookies: Arc::new(Mutex::new(None)),
+            app_id_map,
+            active_rules: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
 }
 
 async fn index() -> impl IntoResponse {
     Html(include_str!("../index.html"))
 }
 
-#[derive(Deserialize)]
-struct LoginInput {
-    username: String,
-    password: String,
-}
+async fn login_handler(
+    State(state): State<AppState>,
+    Json(request): Json<LoginRequest>,
+) -> impl IntoResponse {
+    println!("🔐 Login attempt to: {}", request.url);
+    
+    // Validate URL format
+    if !request.url.starts_with("https://") && !request.url.starts_with("http://") {
+        return Json(ApiResponse {
+            success: false,
+            error: Some("Invalid URL format. Must start with https:// or http://".to_string()),
+            message: None,
+        });
+    }
 
-async fn login(State(state): State<Arc<AppState>>, Json(input): Json<LoginInput>) -> impl IntoResponse {
-    let url = format!("{}/api/auth/login", state.unifi_url);
-    let payload = serde_json::json!({
-        "username": input.username,
-        "password": input.password,
+    let login_url = format!("{}/api/login", request.url);
+    let login_data = serde_json::json!({
+        "username": request.username,
+        "password": request.password
     });
 
-    match state.client.post(&url).json(&payload).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            let token = resp.headers().get("x-csrf-token").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
-            *state.token.lock().await = token;
-            (StatusCode::OK, "Logged in successfully".to_string())
+    match state.client.post(&login_url)
+        .json(&login_data)
+        .send()
+        .await 
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                // Extract cookies for session management
+                let cookies = response
+                    .headers()
+                    .get_all(header::SET_COOKIE)
+                    .iter()
+                    .filter_map(|hv| hv.to_str().ok())
+                    .collect::<Vec<_>>()
+                    .join("; ");
+
+                // Update state
+                *state.unifi_url.lock().await = Some(request.url);
+                *state.session_cookies.lock().await = Some(cookies);
+
+                println!("✅ Login successful");
+                Json(ApiResponse {
+                    success: true,
+                    error: None,
+                    message: Some("Connected successfully".to_string()),
+                })
+            } else {
+                println!("❌ Login failed: HTTP {}", response.status());
+                Json(ApiResponse {
+                    success: false,
+                    error: Some(format!("Authentication failed: {}", response.status())),
+                    message: None,
+                })
+            }
         }
-        _ => (StatusCode::UNAUTHORIZED, "Login failed".to_string()),
+        Err(e) => {
+            println!("❌ Connection error: {}", e);
+            Json(ApiResponse {
+                success: false,
+                error: Some(format!("Connection failed: {}", e)),
+                message: None,
+            })
+        }
     }
 }
 
-#[derive(Deserialize)]
-struct RuleInput {
-    apps: Vec<String>,
-    block_type: String,  // "permanent", "hourly", "until", "recurring"
-    duration_hours: Option<f64>,  // For hourly
-    until_time: Option<String>,  // HH:MM for until
-    recurring_days: Option<Vec<String>>,  // For recurring
-    recurring_start: Option<String>,  // HH:MM
-    recurring_end: Option<String>,  // HH:MM
-    networks: Vec<String>,  // Network names or VLAN IDs
-    devices: Vec<String>,  // MACs
-}
+async fn get_devices(State(state): State<AppState>) -> impl IntoResponse {
+    let unifi_url = state.unifi_url.lock().await.clone();
+    let cookies = state.session_cookies.lock().await.clone();
 
-async fn create_rule(State(state): State<Arc<AppState>>, Json(input): Json<RuleInput>) -> impl IntoResponse {
-    let token_guard = state.token.lock().await;
-    if token_guard.is_none() {
-        return (StatusCode::UNAUTHORIZED, "Not logged in".to_string());
-    }
-
-    let app_ids: Vec<String> = input.apps.iter().filter_map(|app| state.app_id_map.get(app).cloned()).collect();
-    if app_ids.is_empty() {
-        return (StatusCode::BAD_REQUEST, "Invalid apps selected".to_string());
-    }
-
-    let mut payload = serde_json::json!({
-        "action": "block",
-        "description": "App Block Rule",
-        "enabled": true,
-        "logging": false,
-        "match": {
-            "app": {
-                "ids": app_ids,
-            },
-        },
-        "source": {
-            "macs": input.devices,
-        },
-        "target": "INTERNET",
-        "target_networks": input.networks,  // Assuming API supports array of network IDs/names; adjust if needed
-    });
-
-    let is_temporary = input.block_type == "hourly" || input.block_type == "until";
-    let mut schedule_enabled = false;
-
-    if input.block_type == "recurring" {
-        if let (Some(days), Some(start), Some(end)) = (input.recurring_days, input.recurring_start, input.recurring_end) {
-            payload["schedule_enabled"] = serde_json::json!(true);
-            payload["schedule"] = serde_json::json!({
-                "type": "recurring",
-                "recurring": [{
-                    "days_of_week": days,
-                    "start_hour": start.split(':').next().unwrap_or("0").parse::<i32>().unwrap_or(0),
-                    "start_minute": start.split(':').nth(1).unwrap_or("0").parse::<i32>().unwrap_or(0),
-                    "end_hour": end.split(':').next().unwrap_or("0").parse::<i32>().unwrap_or(0),
-                    "end_minute": end.split(':').nth(1).unwrap_or("0").parse::<i32>().unwrap_or(0),
-                }]
+    let (url, cookie_header) = match (unifi_url, cookies) {
+        (Some(url), Some(cookies)) => (url, cookies),
+        _ => {
+            return Json(DevicesResponse {
+                success: false,
+                devices: vec![],
             });
-            schedule_enabled = true;
         }
-    } else if input.block_type == "permanent" {
-        // No schedule
+    };
+
+    let devices_url = format!("{}/api/s/default/stat/sta", url);
+    
+    match state.client.get(&devices_url)
+        .header(header::COOKIE, cookie_header)
+        .send()
+        .await 
+    {
+        Ok(response) => {
+            if let Ok(json) = response.json::<serde_json::Value>().await {
+                let devices: Vec<DeviceInfo> = json["data"]
+                    .as_array()
+                    .unwrap_or(&vec![])
+                    .iter()
+                    .map(|device| DeviceInfo {
+                        mac: device["mac"].as_str().unwrap_or("").to_string(),
+                        name: device["hostname"].as_str().or(device["name"].as_str()).map(|s| s.to_string()),
+                        device_type: device["oui"].as_str().map(|s| s.to_string()),
+                    })
+                    .collect();
+
+                Json(DevicesResponse {
+                    success: true,
+                    devices,
+                })
+            } else {
+                Json(DevicesResponse {
+                    success: false,
+                    devices: vec![],
+                })
+            }
+        }
+        Err(_) => Json(DevicesResponse {
+            success: false,
+            devices: vec![],
+        }),
+    }
+}
+
+async fn create_block_rule(
+    State(state): State<AppState>,
+    Json(rule): Json<BlockRule>,
+) -> impl IntoResponse {
+    println!("🚫 Creating block rule for apps: {:?}", rule.apps);
+
+    let unifi_url = state.unifi_url.lock().await.clone();
+    let cookies = state.session_cookies.lock().await.clone();
+
+    let (url, cookie_header) = match (unifi_url, cookies) {
+        (Some(url), Some(cookies)) => (url, cookies),
+        _ => {
+            return Json(ApiResponse {
+                success: false,
+                error: Some("Not logged in to UniFi".to_string()),
+                message: None,
+            });
+        }
+    };
+
+    // Convert app names to UniFi app IDs
+    let app_ids: Vec<String> = rule.apps
+        .iter()
+        .filter_map(|app| state.app_id_map.get(app).cloned())
+        .collect();
+
+    if app_ids.is_empty() {
+        return Json(ApiResponse {
+            success: false,
+            error: Some("No valid apps selected for blocking".to_string()),
+            message: None,
+        });
     }
 
-    let url = format!("{}/proxy/network/v2/api/site/{}/trafficrules", state.unifi_url, state.site);
-    let mut req = state.client.post(&url).json(&payload);
-    if let Some(token) = token_guard.as_ref() {
-        req = req.header(header::AUTHORIZATION, format!("Bearer {}", token));
-    }
+    // Create firewall rule in UniFi
+    let firewall_url = format!("{}/api/s/default/rest/firewallrule", url);
+    let firewall_rule = serde_json::json!({
+        "name": format!("Parental Block - {}", rule.apps.join(", ")),
+        "ruleset": "WAN_IN",
+        "rule_index": 2000,
+        "action": "drop",
+        "protocol_match_excepted": false,
+        "logging": false,
+        "state_established": false,
+        "state_invalid": false,
+        "state_new": false,
+        "state_related": false,
+        "ipsec": "",
+        "src_firewallgroup_ids": [],
+        "src_mac_address": "",
+        "src_address": "",
+        "src_port": "",
+        "dst_firewallgroup_ids": [],
+        "dst_address": "",
+        "dst_port": "",
+        "icmp_typename": "",
+        "app_category_ids": app_ids,
+        "enabled": rule.status == "active"
+    });
 
-    match req.send().await {
-        Ok(resp) if resp.status().is_success() => {
-            let body: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
-            let rule_id = body.get("_id").and_then(|id| id.as_str()).map(|s| s.to_string());
-
-            if is_temporary && rule_id.is_some() {
-                let end_time = if input.block_type == "hourly" {
-                    if let Some(hours) = input.duration_hours {
-                        Local::now() + ChronoDuration::hours(hours as i64)
-                    } else {
-                        return (StatusCode::BAD_REQUEST, "Missing duration".to_string());
-                    }
-                } else if let Some(time_str) = input.until_time {
-                    let time = NaiveTime::parse_from_str(&time_str, "%H:%M").unwrap_or_default();
-                    let now = Local::now();
-                    let mut end = now.date_naive().and_time(time).and_local_timezone(Local).unwrap();
-                    if end < now {
-                        end += ChronoDuration::days(1);
-                    }
-                    end
+    match state.client.post(&firewall_url)
+        .header(header::COOKIE, cookie_header)
+        .json(&firewall_rule)
+        .send()
+        .await 
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                // Parse response to get the created rule ID
+                let unifi_rule_id = if let Ok(json) = response.json::<serde_json::Value>().await {
+                    json["data"][0]["_id"].as_str().map(|s| s.to_string())
                 } else {
-                    return (StatusCode::BAD_REQUEST, "Missing until time".to_string());
+                    None
                 };
 
-                let state_clone = state.clone();
-                let rule_id_clone = rule_id.unwrap();
-                tokio::spawn(async move {
-                    let sleep_duration = (end_time - Local::now()).num_milliseconds() as u64;
-                    tokio::time::sleep(std::time::Duration::from_millis(sleep_duration)).await;
-                    delete_rule(&state_clone, &rule_id_clone).await;
-                });
-            }
+                // Store rule in our state
+                let active_rule = ActiveRule {
+                    id: rule.id.clone(),
+                    apps: rule.apps.clone(),
+                    rule_type: rule.rule_type.clone(),
+                    devices: rule.devices.clone(),
+                    status: rule.status.clone(),
+                    created: rule.created.clone(),
+                    duration: rule.duration,
+                    end_time: rule.end_time.clone(),
+                    schedule_type: rule.schedule_type.clone(),
+                    unifi_rule_id,
+                };
 
-            (StatusCode::OK, "Rule created successfully".to_string())
-        }
-        Ok(resp) => {
-            let status = if resp.status().is_success() {
-                StatusCode::OK
-            } else if resp.status().is_client_error() {
-                StatusCode::BAD_REQUEST
+                state.active_rules.lock().await.push(active_rule);
+
+                println!("✅ Block rule created successfully");
+                Json(ApiResponse {
+                    success: true,
+                    error: None,
+                    message: Some("Block rule created successfully".to_string()),
+                })
             } else {
-                StatusCode::INTERNAL_SERVER_ERROR
-            };
-            (status, format!("Error: {}", resp.text().await.unwrap_or_default()))
-        },
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Request failed: {}", e)),
-    }
-}
-
-async fn delete_rule(state: &AppState, rule_id: &str) {
-    let token_guard = state.token.lock().await;
-    if let Some(token) = token_guard.as_ref() {
-        let url = format!("{}/proxy/network/v2/api/site/{}/trafficrules/{}", state.unifi_url, state.site, rule_id);
-        let _ = state.client.delete(&url)
-            .header(header::AUTHORIZATION, format!("Bearer {}", token))
-            .send()
-            .await;
-    }
-}
-
-async fn get_networks(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let token_guard = state.token.lock().await;
-    if token_guard.is_none() {
-        return AxumJson(vec![]);
-    }
-
-    let url = format!("{}/proxy/network/api/s/{}/rest/networkconf", state.unifi_url, state.site);
-    let mut req = state.client.get(&url);
-    if let Some(token) = token_guard.as_ref() {
-        req = req.header(header::AUTHORIZATION, format!("Bearer {}", token));
-    }
-
-    match req.send().await {
-        Ok(resp) if resp.status().is_success() => {
-            let body: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
-            let networks: Vec<Network> = body["data"].as_array().unwrap_or(&vec![]).iter().map(|net| {
-                Network {
-                    name: net["name"].as_str().unwrap_or("").to_string(),
-                    vlan_id: net["vlan"].as_u64().map(|v| v as u16),
-                }
-            }).collect();
-            AxumJson(networks)
+                println!("❌ Failed to create firewall rule: HTTP {}", response.status());
+                Json(ApiResponse {
+                    success: false,
+                    error: Some("Failed to create firewall rule in UniFi".to_string()),
+                    message: None,
+                })
+            }
         }
-        _ => AxumJson(vec![]),
+        Err(e) => {
+            println!("❌ Error creating firewall rule: {}", e);
+            Json(ApiResponse {
+                success: false,
+                error: Some(format!("Error creating rule: {}", e)),
+                message: None,
+            })
+        }
     }
 }
 
-async fn get_clients(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let token_guard = state.token.lock().await;
-    if token_guard.is_none() {
-        return AxumJson(vec![]);
-    }
+async fn unblock_rule(
+    State(state): State<AppState>,
+    Json(request): Json<UnblockRequest>,
+) -> impl IntoResponse {
+    println!("🔓 Unblocking rule: {}", request.rule_id);
 
-    let url = format!("{}/proxy/network/api/s/{}/stat/sta", state.unifi_url, state.site);
-    let mut req = state.client.get(&url);
-    if let Some(token) = token_guard.as_ref() {
-        req = req.header(header::AUTHORIZATION, format!("Bearer {}", token));
-    }
+    let unifi_url = state.unifi_url.lock().await.clone();
+    let cookies = state.session_cookies.lock().await.clone();
 
-    match req.send().await {
-        Ok(resp) if resp.status().is_success() => {
-            let body: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
-            let clients: Vec<UniFiClient> = body["data"].as_array().unwrap_or(&vec![]).iter().map(|client| {
-                UniFiClient {
-                    mac: client["mac"].as_str().unwrap_or("").to_string(),
-                    hostname: client["hostname"].as_str().map(|s| s.to_string()),
-                }
-            }).collect();
-            AxumJson(clients)
+    let (url, cookie_header) = match (unifi_url, cookies) {
+        (Some(url), Some(cookies)) => (url, cookies),
+        _ => {
+            return Json(ApiResponse {
+                success: false,
+                error: Some("Not logged in to UniFi".to_string()),
+                message: None,
+            });
         }
-        _ => AxumJson(vec![]),
+    };
+
+    // Find and remove the rule from our state
+    let mut rules = state.active_rules.lock().await;
+    let rule_position = rules.iter().position(|r| r.id == request.rule_id);
+    
+    if let Some(pos) = rule_position {
+        let rule = rules.remove(pos);
+        
+        // If we have a UniFi rule ID, delete it from the controller
+        if let Some(ref unifi_rule_id) = rule.unifi_rule_id {
+            let delete_url = format!("{}/api/s/default/rest/firewallrule/{}", url, unifi_rule_id);
+            
+            match state.client.delete(&delete_url)
+                .header(header::COOKIE, cookie_header)
+                .send()
+                .await 
+            {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        println!("✅ Rule unblocked successfully");
+                        Json(ApiResponse {
+                            success: true,
+                            error: None,
+                            message: Some("Rule unblocked successfully".to_string()),
+                        })
+                    } else {
+                        println!("❌ Failed to delete UniFi rule: HTTP {}", response.status());
+                        // Re-add the rule since deletion failed
+                        rules.push(rule);
+                        Json(ApiResponse {
+                            success: false,
+                            error: Some("Failed to delete rule from UniFi".to_string()),
+                            message: None,
+                        })
+                    }
+                }
+                Err(e) => {
+                    println!("❌ Error deleting UniFi rule: {}", e);
+                    // Re-add the rule since deletion failed
+                    rules.push(rule);
+                    Json(ApiResponse {
+                        success: false,
+                        error: Some(format!("Error deleting rule: {}", e)),
+                        message: None,
+                    })
+                }
+            }
+        } else {
+            // No UniFi rule ID, just remove from local state
+            Json(ApiResponse {
+                success: true,
+                error: None,
+                message: Some("Rule removed from local state".to_string()),
+            })
+        }
+    } else {
+        Json(ApiResponse {
+            success: false,
+            error: Some("Rule not found".to_string()),
+            message: None,
+        })
     }
+}
+
+async fn unblock_all_rules(State(state): State<AppState>) -> impl IntoResponse {
+    println!("🔓 Unblocking all rules");
+
+    let unifi_url = state.unifi_url.lock().await.clone();
+    let cookies = state.session_cookies.lock().await.clone();
+
+    let (url, cookie_header) = match (unifi_url, cookies) {
+        (Some(url), Some(cookies)) => (url, cookies),
+        _ => {
+            return Json(ApiResponse {
+                success: false,
+                error: Some("Not logged in to UniFi".to_string()),
+                message: None,
+            });
+        }
+    };
+
+    let mut rules = state.active_rules.lock().await;
+    let mut failed_deletions = Vec::new();
+
+    // Delete all UniFi rules
+    for rule in rules.iter() {
+        if let Some(unifi_rule_id) = &rule.unifi_rule_id {
+            let delete_url = format!("{}/api/s/default/rest/firewallrule/{}", url, unifi_rule_id);
+            
+            if let Err(e) = state.client.delete(&delete_url)
+                .header(header::COOKIE, &cookie_header)
+                .send()
+                .await 
+            {
+                failed_deletions.push(format!("Rule {}: {}", rule.id, e));
+            }
+        }
+    }
+
+    // Clear all rules from local state
+    rules.clear();
+
+    if failed_deletions.is_empty() {
+        Json(ApiResponse {
+            success: true,
+            error: None,
+            message: Some("All rules unblocked successfully".to_string()),
+        })
+    } else {
+        Json(ApiResponse {
+            success: false,
+            error: Some(format!("Some rules failed to delete: {}", failed_deletions.join(", "))),
+            message: None,
+        })
+    }
+}
+
+async fn get_rules(State(state): State<AppState>) -> impl IntoResponse {
+    let rules = state.active_rules.lock().await.clone();
+    
+    Json(RulesResponse {
+        success: true,
+        rules,
+    })
+}
+
+#[tokio::main]
+async fn main() {
+    let state = AppState::new();
+
+    let app = Router::new()
+        .route("/", get(index))
+        .route("/api/login", post(login_handler))
+        .route("/api/devices", get(get_devices))
+        .route("/api/block", post(create_block_rule))
+        .route("/api/unblock", post(unblock_rule))
+        .route("/api/unblock-all", post(unblock_all_rules))
+        .route("/api/rules", get(get_rules))
+        .with_state(state);
+
+    println!("🚀 Parental UniFi Quick Set running on http://0.0.0.0:3000");
+    println!("📱 Mobile-friendly interface with beautiful styling");
+    println!("🛡️ Easy parental controls for your UniFi network");
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+        .await
+        .unwrap();
+        
+    axum::serve(listener, app).await.unwrap();
 }

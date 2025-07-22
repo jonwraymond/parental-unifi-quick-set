@@ -22,11 +22,25 @@ A simple web-based tool for quickly setting up parental controls on UniFi networ
 
 ## Configuration
 
-Before running, update the UniFi controller URL in `src/main.rs`:
+Before running, update the UniFi controller URL in `src/main.rs` to match your setup.
 
-```rust
-unifi_url: "https://192.168.1.1:8443".to_string(),  // Update to your UniFi controller
-```
+### 🔧 **UniFi Setup Required**
+
+**👉 [Complete UniFi Setup Guide](docs/UNIFI_SETUP_GUIDE.md) 👈**
+
+This application requires a **local admin account** on your UniFi controller. Follow our comprehensive guide to:
+- ✅ Create a local admin account with proper permissions
+- ✅ Enable API access (usually enabled by default)
+- ✅ Test the configuration end-to-end
+- ✅ Implement security best practices
+
+**Quick Summary:**
+1. **Create local admin**: Settings → System → Administration → Add New Admin
+2. **Use "Site Administrator" role** (NOT "View Only")
+3. **Disable "Remote Access"** for security
+4. **Test API access** at `https://[controller-ip]:8443/api/self`
+
+See **[Authentication Options Guide](docs/AUTHENTICATION_OPTIONS.md)** for detailed explanation of why local admin accounts are required.
 
 ## Building
 

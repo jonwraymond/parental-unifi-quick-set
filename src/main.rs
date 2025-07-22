@@ -9,83 +9,332 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use utoipa::{OpenApi, ToSchema};
 
-// Request/Response structures
-#[derive(Deserialize)]
+// OpenAPI Documentation
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        login_handler,
+        get_devices,
+        create_block_rule,
+        unblock_rule,
+        unblock_all_rules,
+        get_rules
+    ),
+    components(
+        schemas(LoginRequest, BlockRule, UnblockRequest, ApiResponse, DevicesResponse, DeviceInfo, RulesResponse, ActiveRule)
+    ),
+    tags(
+        (name = "authentication", description = "UniFi controller authentication"),
+        (name = "devices", description = "Network device management"),
+        (name = "rules", description = "Parental control rule management")
+    ),
+    info(
+        title = "Parental UniFi Quick Set API",
+        version = "1.0.0",
+        description = "A modern API for managing parental controls on UniFi networks. Block apps like Fortnite, Roblox, YouTube with flexible scheduling options.",
+        contact(
+            name = "GitHub Repository",
+            url = "https://github.com/jonwraymond/parental-unifi-quick-set"
+        ),
+        license(
+            name = "MIT",
+            url = "https://opensource.org/licenses/MIT"
+        )
+    ),
+    servers(
+        (url = "http://localhost:3000", description = "Local development server"),
+        (url = "/", description = "Current server")
+    )
+)]
+struct ApiDoc;
+
+async fn openapi_json() -> impl IntoResponse {
+    Json(ApiDoc::openapi())
+}
+
+async fn docs_page() -> impl IntoResponse {
+    Html(r#"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Documentation</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 40px 20px; 
+            line-height: 1.6;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        .header { 
+            text-align: center; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            margin-bottom: 30px;
+        }
+        .header h1 { 
+            color: #0369a1; 
+            margin-bottom: 10px; 
+        }
+        .section { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            margin-bottom: 20px;
+        }
+        .endpoint { 
+            background: #f8fafc; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 10px 0; 
+            border-left: 4px solid #0ea5e9;
+        }
+        .method { 
+            font-weight: bold; 
+            color: #0ea5e9; 
+            text-transform: uppercase; 
+        }
+        pre { 
+            background: #1e293b; 
+            color: #e2e8f0; 
+            padding: 15px; 
+            border-radius: 8px; 
+            overflow-x: auto; 
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            margin: 10px 10px 0 0;
+        }
+        .button:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ Parental Controls API</h1>
+        <p>RESTful API for managing UniFi network parental controls</p>
+        <a href="/api-docs/openapi.json" class="button">📄 OpenAPI JSON</a>
+        <a href="https://editor.swagger.io/" target="_blank" class="button">🔧 Swagger Editor</a>
+    </div>
+
+    <div class="section">
+        <h2>🔐 Authentication</h2>
+        <div class="endpoint">
+            <span class="method">POST</span> /api/login
+            <p>Connect to your UniFi controller with local admin credentials.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📱 Device Management</h2>
+        <div class="endpoint">
+            <span class="method">GET</span> /api/devices
+            <p>Discover all devices connected to your UniFi network.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🚫 Rule Management</h2>
+        <div class="endpoint">
+            <span class="method">POST</span> /api/block
+            <p>Create a new blocking rule for apps (Fortnite, YouTube, etc.) with flexible scheduling.</p>
+        </div>
+        <div class="endpoint">
+            <span class="method">GET</span> /api/rules
+            <p>Get all active blocking rules with their current status.</p>
+        </div>
+        <div class="endpoint">
+            <span class="method">POST</span> /api/unblock
+            <p>Remove a specific blocking rule by ID.</p>
+        </div>
+        <div class="endpoint">
+            <span class="method">POST</span> /api/unblock-all
+            <p>Emergency unblock - remove all active rules at once.</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Quick Start</h2>
+        <pre><code># 1. Connect to UniFi
+curl -X POST http://localhost:3000/api/login \\
+  -H "Content-Type: application/json" \\
+  -d '{"url":"https://192.168.1.1:8443","username":"admin","password":"password"}'
+
+# 2. Block gaming apps
+curl -X POST http://localhost:3000/api/block \\
+  -H "Content-Type: application/json" \\
+  -d '{"id":"1234","apps":["fortnite","roblox"],"type":"permanent","devices":["all"],"status":"active","created":"2024-01-01T12:00:00Z"}'
+
+# 3. List active rules
+curl http://localhost:3000/api/rules</code></pre>
+    </div>
+
+    <div class="section">
+        <h2>📚 Supported Apps</h2>
+        <p>🎮 <strong>Gaming:</strong> Fortnite, Roblox, Minecraft, Twitch, Discord</p>
+        <p>📺 <strong>Video:</strong> YouTube, TikTok, Netflix</p>
+        <p>📷 <strong>Social:</strong> Instagram, Snapchat</p>
+    </div>
+</body>
+</html>
+    "#)
+}
+
+// Request/Response structures with OpenAPI schemas
+#[derive(Deserialize, ToSchema)]
+#[schema(example = json!({
+    "url": "https://192.168.1.1:8443",
+    "username": "parental-control-app",
+    "password": "your-secure-password"
+}))]
 struct LoginRequest {
+    /// UniFi controller URL (e.g., https://192.168.1.1:8443)
     url: String,
+    /// Local admin username (recommended over cloud accounts)
     username: String,
+    /// Local admin password
     password: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
+#[schema(example = json!({
+    "id": "1642781234567",
+    "apps": ["fortnite", "roblox"],
+    "type": "permanent",
+    "devices": ["all"],
+    "status": "active",
+    "created": "2024-01-01T12:00:00Z",
+    "duration": 2,
+    "endTime": "2024-01-01T14:00:00Z",
+    "scheduleType": "bedtime"
+}))]
 struct BlockRule {
+    /// Unique identifier for the rule
     id: String,
+    /// List of app names to block (fortnite, roblox, youtube, etc.)
     apps: Vec<String>,
     #[serde(rename = "type")]
+    /// Type of blocking: permanent, duration, until, schedule
     rule_type: String,
+    /// Target devices (MAC addresses or "all")
     devices: Vec<String>,
+    /// Rule status: active or disabled
     status: String,
+    /// ISO timestamp when rule was created
     created: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Duration in hours (for duration type)
     duration: Option<u32>,
     #[serde(rename = "endTime", skip_serializing_if = "Option::is_none")]
+    /// End time for the rule (ISO timestamp)
     end_time: Option<String>,
     #[serde(rename = "scheduleType", skip_serializing_if = "Option::is_none")]
+    /// Schedule type for recurring rules (bedtime, homework, etc.)
     schedule_type: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
+#[schema(example = json!({
+    "ruleId": "1642781234567"
+}))]
 struct UnblockRequest {
     #[serde(rename = "ruleId")]
+    /// ID of the rule to unblock/remove
     rule_id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct ApiResponse {
+    /// Whether the operation was successful
     success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Error message if operation failed
     error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Success message if operation succeeded
     message: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct DevicesResponse {
+    /// Whether the operation was successful
     success: bool,
+    /// List of discovered network devices
     devices: Vec<DeviceInfo>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
+#[schema(example = json!({
+    "mac": "aa:bb:cc:dd:ee:ff",
+    "name": "iPhone 12",
+    "type": "Apple"
+}))]
 struct DeviceInfo {
+    /// Device MAC address
     mac: String,
+    /// Friendly device name (if available)
     name: Option<String>,
     #[serde(rename = "type")]
+    /// Device manufacturer or type
     device_type: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct RulesResponse {
+    /// Whether the operation was successful
     success: bool,
+    /// List of active blocking rules
     rules: Vec<ActiveRule>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, ToSchema)]
+#[schema(example = json!({
+    "id": "1642781234567",
+    "apps": ["fortnite", "roblox"],
+    "rule_type": "permanent",
+    "devices": ["all"],
+    "status": "active",
+    "created": "2024-01-01T12:00:00Z",
+    "unifi_rule_id": "61d1234567890abcdef12345"
+}))]
 struct ActiveRule {
+    /// Unique identifier for the rule
     id: String,
+    /// List of blocked app names
     apps: Vec<String>,
+    /// Type of blocking rule
     rule_type: String,
+    /// Target devices
     devices: Vec<String>,
+    /// Current rule status
     status: String,
+    /// When the rule was created
     created: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Duration in hours (for duration rules)
     duration: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// End time for the rule
     end_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    /// Schedule type for recurring rules
     schedule_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    unifi_rule_id: Option<String>, // Track UniFi firewall rule ID
+    /// UniFi firewall rule ID (internal)
+    unifi_rule_id: Option<String>,
 }
 
 // Application state
@@ -131,6 +380,21 @@ async fn index() -> impl IntoResponse {
     Html(include_str!("../index.html"))
 }
 
+/// Authenticate with UniFi controller
+///
+/// Connects to your UniFi controller using local admin credentials.
+/// Cloud accounts are not recommended due to MFA requirements.
+#[utoipa::path(
+    post,
+    path = "/api/login",
+    tag = "authentication",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = ApiResponse),
+        (status = 401, description = "Authentication failed", body = ApiResponse),
+        (status = 400, description = "Invalid request format", body = ApiResponse)
+    )
+)]
 async fn login_handler(
     State(state): State<AppState>,
     Json(request): Json<LoginRequest>,
@@ -198,6 +462,19 @@ async fn login_handler(
     }
 }
 
+/// Get network devices
+///
+/// Discovers all devices connected to the UniFi network.
+/// Requires authentication first.
+#[utoipa::path(
+    get,
+    path = "/api/devices",
+    tag = "devices",
+    responses(
+        (status = 200, description = "Devices retrieved successfully", body = DevicesResponse),
+        (status = 401, description = "Not authenticated", body = DevicesResponse)
+    )
+)]
 async fn get_devices(State(state): State<AppState>) -> impl IntoResponse {
     let unifi_url = state.unifi_url.lock().await.clone();
     let cookies = state.session_cookies.lock().await.clone();
@@ -250,6 +527,21 @@ async fn get_devices(State(state): State<AppState>) -> impl IntoResponse {
     }
 }
 
+/// Create a blocking rule
+///
+/// Creates a new rule to block specified apps with flexible scheduling.
+/// Supports permanent blocks, duration-based blocks, time-based blocks, and recurring schedules.
+#[utoipa::path(
+    post,
+    path = "/api/block",
+    tag = "rules",
+    request_body = BlockRule,
+    responses(
+        (status = 200, description = "Rule created successfully", body = ApiResponse),
+        (status = 400, description = "Invalid rule configuration", body = ApiResponse),
+        (status = 401, description = "Not authenticated", body = ApiResponse)
+    )
+)]
 async fn create_block_rule(
     State(state): State<AppState>,
     Json(rule): Json<BlockRule>,
@@ -367,6 +659,21 @@ async fn create_block_rule(
     }
 }
 
+/// Remove a blocking rule
+///
+/// Removes a specific blocking rule by ID. This will unblock the apps
+/// for the specified devices and remove the rule from the UniFi controller.
+#[utoipa::path(
+    post,
+    path = "/api/unblock",
+    tag = "rules",
+    request_body = UnblockRequest,
+    responses(
+        (status = 200, description = "Rule removed successfully", body = ApiResponse),
+        (status = 404, description = "Rule not found", body = ApiResponse),
+        (status = 401, description = "Not authenticated", body = ApiResponse)
+    )
+)]
 async fn unblock_rule(
     State(state): State<AppState>,
     Json(request): Json<UnblockRequest>,
@@ -450,6 +757,19 @@ async fn unblock_rule(
     }
 }
 
+/// Remove all blocking rules
+///
+/// Removes all active blocking rules at once. This is useful for
+/// emergency situations where you need to quickly unblock everything.
+#[utoipa::path(
+    post,
+    path = "/api/unblock-all",
+    tag = "rules",
+    responses(
+        (status = 200, description = "All rules removed successfully", body = ApiResponse),
+        (status = 401, description = "Not authenticated", body = ApiResponse)
+    )
+)]
 async fn unblock_all_rules(State(state): State<AppState>) -> impl IntoResponse {
     println!("🔓 Unblocking all rules");
 
@@ -503,6 +823,18 @@ async fn unblock_all_rules(State(state): State<AppState>) -> impl IntoResponse {
     }
 }
 
+/// Get all active rules
+///
+/// Returns a list of all currently active blocking rules.
+/// This includes rule details, schedules, and target devices.
+#[utoipa::path(
+    get,
+    path = "/api/rules",
+    tag = "rules",
+    responses(
+        (status = 200, description = "Rules retrieved successfully", body = RulesResponse)
+    )
+)]
 async fn get_rules(State(state): State<AppState>) -> impl IntoResponse {
     let rules = state.active_rules.lock().await.clone();
     
@@ -524,11 +856,14 @@ async fn main() {
         .route("/api/unblock", post(unblock_rule))
         .route("/api/unblock-all", post(unblock_all_rules))
         .route("/api/rules", get(get_rules))
+        .route("/api-docs/openapi.json", get(openapi_json))
+        .route("/docs", get(docs_page))
         .with_state(state);
 
     println!("🚀 Parental UniFi Quick Set running on http://0.0.0.0:3000");
     println!("📱 Mobile-friendly interface with beautiful styling");
     println!("🛡️ Easy parental controls for your UniFi network");
+    println!("📚 API Documentation available at http://0.0.0.0:3000/docs");
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await

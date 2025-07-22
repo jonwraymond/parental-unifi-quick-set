@@ -1,0 +1,44 @@
+---
+title: UniFi API Development Guidelines
+---
+
+# UniFi API Development Guidelines
+
+## Authentication Requirements
+
+**CRITICAL**: This project uses **Local Network API**, NOT the Site Manager API.
+
+### Required Setup
+- **Local admin account** on UniFi controller (see [docs/UNIFI_SETUP_GUIDE.md](mdc:docs/UNIFI_SETUP_GUIDE.md))
+- **Site Administrator role** (minimum required for traffic rule management)
+- **Remote Access DISABLED** for security
+- **Username/password authentication** (no API keys needed)
+
+### API Endpoints
+- **Base URL**: `https://[controller-ip]:8443/api/`
+- **Login**: `POST /api/login` with `{"username": "...", "password": "..."}`
+- **Sites**: `GET /api/self/sites`
+- **Traffic Rules**: `POST /api/s/{site}/rest/firewallrule`
+
+### Common Mistakes to Avoid
+- ❌ Don't use Site Manager API (cloud-based, read-only)
+- ❌ Don't use "View Only" role (can't create traffic rules)
+- ❌ Don't enable "Remote Access" (security risk)
+- ❌ Don't use cloud accounts (MFA breaks API access)
+
+### Code Patterns
+```rust
+// UniFi client state structure
+struct AppState {
+    client: Client,              // reqwest client with danger_accept_invalid_certs
+    unifi_url: String,          // https://[controller]:8443
+    app_id_map: HashMap,        // App name to ID mapping
+}
+
+// Authentication flow
+POST /api/login → Save cookies → Use cookies for subsequent requests
+```
+
+### Testing
+- Verify API access: `curl -k https://[controller]:8443/api/self`
+- Expected: `{"data":[],"meta":{"msg":"api.err.LoginRequired","rc":"error"}}`

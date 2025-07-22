@@ -1,0 +1,62 @@
+---
+title: Rust/Axum Development Patterns
+---
+
+# Rust/Axum Development Patterns
+
+## Project-Specific Patterns
+
+This project uses **Axum 0.6** with specific patterns for UniFi API integration.
+
+### State Management
+```rust
+// App state structure in main.rs
+struct AppState {
+    client: reqwest::Client,     // HTTP client for UniFi API
+    unifi_url: String,          // Controller URL
+    app_id_map: HashMap<String, String>, // App names to UniFi IDs
+}
+
+// Usage in handlers
+async fn handler(State(state): State<Arc<AppState>>) -> impl IntoResponse
+```
+
+### Error Handling
+```rust
+// Return JSON errors for API endpoints
+Json(serde_json::json!({
+    "success": false,
+    "error": "Descriptive error message"
+}))
+
+// Return HTML for page routes
+Html(include_str!("../index.html"))
+```
+
+### UniFi API Integration
+```rust
+// Always use danger_accept_invalid_certs for UniFi controllers
+let client = Client::builder()
+    .danger_accept_invalid_certs(true)
+    .build()?;
+
+// Cookie-based authentication pattern
+let login_response = client.post(&format!("{}/api/login", unifi_url))
+    .json(&json!({"username": username, "password": password}))
+    .send().await?;
+```
+
+### Dependencies Used
+- **axum = "0.6"** (web framework)
+- **tokio** with "full" features
+- **reqwest** with "json" features  
+- **serde/serde_json** for JSON handling
+- **chrono** for time operations
+
+### Static File Serving
+```rust
+// Serve index.html directly via include_str!
+async fn index() -> impl IntoResponse {
+    Html(include_str!("../index.html"))
+}
+```

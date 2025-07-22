@@ -1,0 +1,68 @@
+# Deployment Configuration
+
+## Multi-Platform Deployment Support
+
+This project supports multiple deployment methods with appropriate configurations.
+
+## Docker Configuration
+
+### [Dockerfile](mdc:Dockerfile) - Multi-stage Build
+```dockerfile
+# Pattern: Use Alpine-based Rust for smaller images
+FROM rust:1-alpine AS builder
+RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig
+
+# Pattern: Build dependencies separately for better caching
+COPY Cargo.toml ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build --release
+
+# Pattern: Minimal runtime image
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates openssl
+```
+
+### [docker-compose.yml](mdc:docker-compose.yml) - Local Development
+```yaml
+# Pattern: Simple single-service setup for local development
+services:
+  parental-unifi:
+    build: .
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+```
+
+## Cloud Deployment
+
+### [fly.toml](mdc:fly.toml) - Fly.io Configuration
+```toml
+# Pattern: Single-region deployment with health checks
+app = "parental-unifi-quick-set"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Pattern: HTTPS termination and health checks
+[[services]]
+  internal_port = 3000
+  force_https = true
+```
+
+## Port Configuration
+- **Application**: Runs on port 3000 internally
+- **Docker**: Exposes port 3000
+- **Cloud**: HTTPS termination on 443/80
+
+## Environment Variables
+```bash
+# Optional UniFi configuration (hardcoded defaults in src/main.rs)
+RUST_LOG=info                    # Logging level
+PORT=3000                       # Server port (if implemented)
+```
+
+## Security Notes
+- Uses self-signed cert acceptance for UniFi controllers
+- No external API keys required (uses UniFi local admin)
+- All traffic encrypted via HTTPS

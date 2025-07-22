@@ -1,0 +1,31 @@
+---
+# Parental UniFi Quick Set - Project Structure
+
+This is a **Rust web application** for parental controls on UniFi networks built with **Axum framework**.
+
+## Key Files
+
+- **Main Application**: [src/main.rs](mdc:src/main.rs) - Axum web server with UniFi API integration
+- **Frontend**: [index.html](mdc:index.html) - Single-page web interface for parental controls
+- **Dependencies**: [Cargo.toml](mdc:Cargo.toml) - Rust dependencies including Axum, reqwest, tokio
+- **Documentation**: [docs/UNIFI_SETUP_GUIDE.md](mdc:docs/UNIFI_SETUP_GUIDE.md) - Complete setup instructions
+
+## Project Purpose
+
+**Blocks apps like Fortnite, Roblox, YouTube** on UniFi networks with flexible scheduling:
+- Permanent blocks, temporary blocks, time-based schedules
+- Uses UniFi Local Network API (NOT Site Manager API - read-only)
+- Requires local admin account with Site Administrator permissions
+
+## Architecture
+
+```
+Web UI (index.html) → Axum Server (main.rs) → UniFi Controller API → Network Traffic Rules
+```
+
+## Deployment
+
+- **Local**: `cargo run` or `./target/release/parental-unifi-quick-set`
+- **Docker**: [Dockerfile](mdc:Dockerfile) with multi-stage build
+- **Cloud**: [fly.toml](mdc:fly.toml) for Fly.io deployment
+---

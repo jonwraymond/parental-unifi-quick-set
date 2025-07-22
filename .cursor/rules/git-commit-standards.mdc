@@ -1,0 +1,76 @@
+---
+title: Git Commit Standards
+---
+
+# Git Commit Standards
+
+## Commit Frequency Philosophy
+
+**Make frequent, small commits for easy rollback** - break changes into logical, focused commits.
+
+## Commit Message Format
+
+Use conventional commit format:
+```
+<type>: <description>
+
+[optional body]
+```
+
+### Types
+- `feat`: New feature
+- `fix`: Bug fix  
+- `docs`: Documentation changes
+- `style`: Code style changes
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+- `build`: Build system changes
+- `deploy`: Deployment configuration
+
+### Examples from this project
+```
+feat: Add git aliases for faster workflow
+docs: Add comprehensive UniFi setup guide  
+fix: Docker build OpenSSL dependencies
+chore: Add git workflow tools for frequent commits
+```
+
+## Available Tools
+
+This project includes helpful git tools in [scripts/](mdc:scripts/):
+
+### Quick Commit Script
+```bash
+# Interactive commit with auto-generated messages
+./scripts/quick-commit.sh
+
+# Direct commit with message
+./scripts/quick-commit.sh "feat: description"
+```
+
+### Git Aliases
+```bash
+# Set up helpful aliases
+./scripts/setup-aliases.sh
+
+# Then use:
+git qc                    # Quick commit (interactive)
+git acp "message"         # Add, commit, push in one command
+git st                    # Short status
+git lg                    # Pretty log
+```
+
+### Pre-commit Hook
+- Warns about large commits (>10 files or >200 lines)
+- Encourages breaking commits into smaller pieces
+- Install with: `./scripts/install-hooks.sh`
+
+## Best Practices
+
+1. **Small, focused commits** - each commit should do one thing
+2. **Descriptive messages** - explain what and why, not how
+3. **Test before commit** - ensure code builds and runs
+4. **Frequent pushes** - don't hoard commits locally
+
+See [COMMIT_GUIDELINES.md](mdc:COMMIT_GUIDELINES.md) for detailed guidelines.

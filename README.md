@@ -65,6 +65,29 @@ fly deploy
 
 Copy the binary and create a systemd service file.
 
+## Development Workflow
+
+This project uses frequent, small commits for easy rollback and better version control.
+
+### Quick Start:
+```bash
+# Install git hooks (one-time setup)
+./scripts/install-hooks.sh
+
+# For frequent commits, use the quick commit script
+./scripts/quick-commit.sh
+
+# Or specify a message directly
+./scripts/quick-commit.sh "feat: Add new feature description"
+```
+
+### Best Practices:
+- **Commit early, commit often** - Small commits are easier to review and rollback
+- **One logical change per commit** - Each commit should represent a single improvement
+- **Use descriptive messages** - Follow conventional commit format (feat:, fix:, docs:, etc.)
+
+See [COMMIT_GUIDELINES.md](COMMIT_GUIDELINES.md) for detailed guidelines and examples.
+
 ## Usage
 
 1. Navigate to `http://localhost:3000` (or your deployed URL)

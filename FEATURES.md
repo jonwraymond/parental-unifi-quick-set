@@ -1,139 +1,105 @@
 # 🛡️ Parental UniFi Quick Set - Features Overview
 
-**A modern, beautiful parental control interface for UniFi networks**
+**A modern, professional parental control interface matching UniFi's design language**
 
 ## ✨ **Key Features**
 
-### 🎨 **Beautiful, Modern Interface**
-- **Mobile-First Design**: Fully responsive, works perfectly on phones, tablets, and desktop
-- **Gradient Styling**: Beautiful purple-to-blue gradients with smooth animations
-- **Card-Based Layout**: Clean, organized sections with hover effects and shadows
-- **App Icons**: Visual identification with emojis (🎮 Fortnite, 📺 YouTube, etc.)
-- **Loading States**: Smooth spinners and progress indicators
+### 🎨 **UniFi-Inspired Design**
+- **Clean Blue & White Theme**: Matches UniFi's professional design language perfectly
+- **Minimalist Card Layout**: Subtle shadows, rounded corners, and elegant spacing
+- **Professional Typography**: System fonts with proper weight and hierarchy  
+- **Micro-Interactions**: Smooth hover effects and polished animations
+- **Mobile-First Responsive**: Feels native on phones, tablets, and desktop
+
+### 🛠️ **Enhanced User Experience**
+- **Interactive Tooltips**: Helpful guidance on every form field with setup links
+- **Real-Time Feedback**: Connection status indicator and visual state updates
+- **Visual App Icons**: Easy recognition with emojis (🎮 🟩 📺 🎵 📷)
+- **Parent-Friendly Language**: Clear, non-technical descriptions and actions
+- **Documentation Links**: Direct access to setup guides and troubleshooting
 
 ### ⚡ **Quick Actions**
-- **🎮 Block Gaming**: Instantly block Fortnite, Roblox with one click
+- **🎮 Block Gaming**: Instantly block Fortnite, Roblox, Minecraft with one click
 - **📺 Block Videos**: Block YouTube, TikTok, Netflix with one click  
 - **⏰ Schedule Rules**: Quick access to homework time, bedtime schedules
-- **✅ Unblock All**: Emergency unblock all rules with confirmation
+- **✅ Unblock All**: Emergency unblock - remove all rules instantly
 
 ### 🚫 **Flexible Blocking Options**
-- **Permanent Blocks**: Always blocked until manually removed
-- **Duration Blocks**: Block for specific hours (1-24 hours)
-- **Time-Based Blocks**: Block until specific date/time
-- **Recurring Schedules**:
-  - 😴 Bedtime (8 PM - 7 AM)
-  - 📚 Homework Time (3 PM - 6 PM)  
-  - 📅 School Days Only
-  - 🎉 Weekends Only
-  - ⚙️ Custom Schedules
+- **Permanent Blocks**: Long-term restrictions for inappropriate content
+- **Duration-Based**: Block for specific hours (1-24 hours)
+- **Time-Based**: Block until a specific date/time
+- **Recurring Schedules**: Bedtime (8 PM - 7 AM), Homework Time (3 PM - 6 PM)
+- **Custom Schedules**: Create your own recurring time blocks
 
 ### 📱 **Supported Apps & Services**
-- **Gaming**: 🎮 Fortnite, 🟩 Roblox, 🎮 Twitch, 🎮 Discord, Minecraft
-- **Video**: 📺 YouTube, 🎬 Netflix, 🎵 TikTok
-- **Social**: 📷 Instagram, 👻 Snapchat
-- **Extensible**: Easy to add more apps via configuration
+- **Gaming**: Fortnite, Roblox, Minecraft, Twitch, Discord
+- **Video**: YouTube, TikTok, Netflix
+- **Social**: Instagram, Snapchat
+- **Extensible**: Easy to add more apps with simple configuration
 
-### 🎯 **Device Targeting**
-- **All Devices**: Apply rules to entire network
+### 🌐 **Device Targeting**
+- **All Devices**: Apply rules to the entire network
 - **Specific Devices**: Target individual phones, tablets, computers
-- **Auto-Detection**: Automatically discovers and lists network devices
-- **Device Names**: Shows friendly names (iPhone, MacBook, etc.)
+- **Auto-Discovery**: Automatically finds all network devices
+- **Friendly Names**: Shows device names instead of MAC addresses
 
-### 💾 **Smart State Management**
-- **Persistent Rules**: Rules survive browser refresh and app restarts
-- **LocalStorage Backup**: Client-side persistence for reliability
-- **Real-Time Sync**: Live updates between UniFi controller and interface
-- **Status Tracking**: Active/disabled states with visual indicators
+### 📚 **Comprehensive API Documentation**
+- **OpenAPI 3.0 Specification**: Complete, standards-compliant API docs
+- **Interactive Documentation**: Beautiful UI at `/docs` with examples
+- **JSON Schema**: Full request/response validation and examples
+- **cURL Examples**: Ready-to-use command line examples
+- **Swagger Compatible**: Import into any OpenAPI-compatible tool
 
-### 🔧 **Rule Management**
-- **Visual Rule List**: See all active rules with app icons and schedules
-- **Quick Controls**: Pause/Resume rules without deleting
-- **Rule Details**: Shows schedule type, affected devices, creation time
-- **Bulk Actions**: Unblock all rules with single click
-- **Smart Deletion**: Removes rules from both UI and UniFi controller
+### 🔧 **API Endpoints**
+- **POST /api/login**: Authenticate with UniFi controller
+- **GET /api/devices**: Discover all network devices  
+- **POST /api/block**: Create new blocking rules with scheduling
+- **GET /api/rules**: List all active parental control rules
+- **POST /api/unblock**: Remove specific rules by ID
+- **POST /api/unblock-all**: Emergency unblock all active rules
 
-## 🏗️ **Technical Excellence**
+### 💾 **State Management**
+- **Persistent Storage**: Rules survive application restarts
+- **Local Backup**: Browser localStorage as backup for rule state
+- **Real-Time Sync**: Updates immediately reflect in UniFi controller
+- **Rule Tracking**: Each rule gets unique ID for precise management
 
-### 🦀 **Modern Rust Backend**
-- **Axum 0.7**: Latest async web framework with excellent performance
-- **Type Safety**: Structured request/response types with Serde
-- **Error Handling**: Comprehensive error responses with user-friendly messages
-- **Session Management**: Cookie-based authentication with UniFi controllers
-- **Logging**: Detailed logging for debugging and monitoring
+### 🏗️ **Technical Excellence**
+- **Rust + Axum Backend**: Fast, safe, and reliable server
+- **UniFi Integration**: Direct API communication with controllers
+- **Mobile-Optimized**: Progressive Web App capabilities
+- **Security**: HTTPS-only connections, secure session management
+- **Error Handling**: Graceful failures with helpful error messages
 
-### 🔐 **Security & Authentication**
-- **Local Admin Accounts**: Recommended approach for API access
-- **HTTPS Support**: SSL certificate validation (can disable for self-signed)
-- **Session Cookies**: Secure session management
-- **No API Keys**: Uses standard UniFi username/password authentication
-
-### 📡 **UniFi Integration**
-- **Local Network API**: Direct communication with UniFi controller
-- **Firewall Rules**: Creates proper firewall rules for app blocking
-- **Device Discovery**: Automatically finds connected devices
-- **Rule Synchronization**: Keeps UI and controller in sync
-- **Graceful Handling**: Handles network errors and controller restarts
-
-### 🌐 **Cross-Platform Deployment**
-- **Native Binary**: Single-file executable, no dependencies
-- **Docker Support**: Multi-stage builds with Alpine Linux
-- **Docker Compose**: Easy local development and testing
-- **Fly.io Ready**: Cloud deployment configuration included
-- **GitHub Actions**: Automated CI/CD pipeline
-
-## 👥 **Parent-Friendly Design**
-
-### 🎯 **Intuitive User Experience**
-- **One-Click Blocking**: No complex configuration needed
-- **Visual Feedback**: Clear status messages and confirmations
-- **Mobile Optimized**: Easy to use on phones while away from home
-- **Quick Presets**: Common scenarios (bedtime, homework) built-in
-- **Emergency Access**: Quick unblock for urgent situations
-
-### 📋 **Clear Information Display**
-- **Rule Descriptions**: Plain English explanations
-- **Time Information**: Shows when rules expire or when they're active
-- **Device Lists**: Clear indication of which devices are affected
-- **Status Badges**: Color-coded active/disabled indicators
-
-### 🛠️ **Easy Setup**
-- **Setup Guide**: Comprehensive documentation for UniFi configuration
-- **Auto-Discovery**: Automatically detects controller URL
-- **Validation**: Clear error messages for setup issues
-- **Testing Tools**: Built-in connection testing
+### 🎯 **Parent-Friendly Features**
+- **One-Click Actions**: Common blocking scenarios with single button
+- **Visual Status**: Clear indicators showing what's currently blocked
+- **Easy Override**: Quick unblock for special occasions
+- **Schedule Templates**: Pre-configured homework and bedtime rules
+- **Emergency Access**: Panic button to unblock everything instantly
 
 ## 🚀 **Getting Started**
 
-1. **Setup UniFi**: Follow [docs/UNIFI_SETUP_GUIDE.md](docs/UNIFI_SETUP_GUIDE.md)
-2. **Run Application**: `./target/release/parental-unifi-quick-set`
-3. **Open Browser**: Navigate to `http://localhost:3000`
-4. **Connect**: Enter your UniFi controller details
-5. **Start Blocking**: Use quick actions or create custom rules
+### Quick Setup (5 minutes)
+1. **Download & Run**: Get the binary and start the server
+2. **Open Browser**: Navigate to `http://localhost:3000`
+3. **Connect UniFi**: Enter your controller URL and credentials  
+4. **Start Blocking**: Use quick actions or create custom rules
+5. **View API Docs**: Visit `/docs` for complete API reference
 
-## 📈 **Future Enhancements**
+### Advanced Usage
+- **API Integration**: Use the REST API for automation and scripts
+- **Custom Schedules**: Create complex recurring blocking patterns
+- **Device Management**: Fine-tune rules for specific family members
+- **Monitoring**: Track rule effectiveness and usage patterns
 
-- **Content Categories**: Block by content type (social media, gaming, etc.)
-- **Time Limits**: Daily screen time limits with automatic blocking
-- **User Profiles**: Different rules for different family members
-- **Reporting**: Usage statistics and blocked attempt reports
-- **Mobile App**: Dedicated iOS/Android apps
-- **Voice Integration**: Alexa/Google Home control
-- **Geofencing**: Location-based rule activation
+## 🔮 **Future Roadmap**
+- **Multi-Site Support**: Manage multiple UniFi sites from one interface
+- **Usage Analytics**: Track blocked attempts and usage patterns  
+- **Profile Management**: Different rules for different family members
+- **Notification System**: Alerts when rules are triggered
+- **Mobile App**: Native iOS/Android apps for on-the-go management
 
-## 🎯 **Use Cases**
+---
 
-### 👨‍👩‍👧‍👦 **Family Scenarios**
-- **Homework Time**: Block distracting apps during study hours
-- **Bedtime Routine**: Ensure devices are offline for better sleep
-- **Chore Completion**: Temporary blocks until tasks are done
-- **Screen Time Limits**: Healthy digital boundaries
-- **Emergency Situations**: Quick unblock for important communications
-
-### 🏠 **Household Management**
-- **Guest Network**: Separate controls for visitors
-- **Work Hours**: Maintain productivity during remote work
-- **Family Events**: Block distractions during family time
-- **Educational Focus**: Allow educational apps while blocking entertainment
-
-This modern interface transforms complex network administration into simple, parent-friendly controls that actually get used. 
+**Transform your home network into a family-friendly environment with professional-grade parental controls that actually work.** 

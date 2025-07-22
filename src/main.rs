@@ -171,7 +171,7 @@ async fn docs_page() -> impl IntoResponse {
         <pre><code># 1. Connect to UniFi
 curl -X POST http://localhost:3000/api/login \\
   -H "Content-Type: application/json" \\
-  -d '{"url":"https://192.168.1.1:8443","username":"admin","password":"password"}'
+  -d '{"url":"https://192.168.1.1:8443","username":"admin","password":"YOUR_PASSWORD"}'
 
 # 2. Block gaming apps
 curl -X POST http://localhost:3000/api/block \\
@@ -198,7 +198,7 @@ curl http://localhost:3000/api/rules</code></pre>
 #[schema(example = json!({
     "url": "https://192.168.1.1:8443",
     "username": "parental-control-app",
-    "password": "your-secure-password"
+    "password": "YOUR_SECURE_PASSWORD"
 }))]
 struct LoginRequest {
     /// UniFi controller URL (e.g., https://192.168.1.1:8443)
@@ -410,7 +410,15 @@ async fn login_handler(
         });
     }
 
-    let login_url = format!("{}/api/login", request.url);
+    // For UniFi OS (UDM devices), use the correct auth endpoint
+    let login_url = if request.url.contains("/proxy/network") {
+        // User provided proxy/network URL - use traditional controller login
+        format!("{}/api/login", request.url)
+    } else {
+        // Regular UniFi OS URL - use the UniFi OS auth endpoint that works
+        format!("{}/api/auth/login", request.url)
+    };
+
     let login_data = serde_json::json!({
         "username": request.username,
         "password": request.password
@@ -436,17 +444,17 @@ async fn login_handler(
                 *state.unifi_url.lock().await = Some(request.url);
                 *state.session_cookies.lock().await = Some(cookies);
 
-                println!("✅ Login successful");
+                println!("✅ Login successful via {}", login_url);
                 Json(ApiResponse {
                     success: true,
                     error: None,
-                    message: Some("Connected successfully".to_string()),
+                    message: Some("Connected successfully to UniFi OS".to_string()),
                 })
             } else {
                 println!("❌ Login failed: HTTP {}", response.status());
                 Json(ApiResponse {
                     success: false,
-                    error: Some(format!("Authentication failed: {}", response.status())),
+                    error: Some(format!("Authentication failed: {}. Try using the UniFi OS auth endpoint.", response.status())),
                     message: None,
                 })
             }
@@ -455,7 +463,7 @@ async fn login_handler(
             println!("❌ Connection error: {}", e);
             Json(ApiResponse {
                 success: false,
-                error: Some(format!("Connection failed: {}", e)),
+                error: Some(format!("Connection failed: {}. Verify the UniFi controller is accessible.", e)),
                 message: None,
             })
         }
@@ -489,7 +497,16 @@ async fn get_devices(State(state): State<AppState>) -> impl IntoResponse {
         }
     };
 
-    let devices_url = format!("{}/api/s/default/stat/sta", url);
+    // For UniFi OS, we need to use the proxy endpoint to access network data
+    let devices_url = if url.contains("/proxy/network") {
+        // Traditional controller path
+        format!("{}/api/s/default/stat/sta", url)
+    } else {
+        // UniFi OS path - use proxy to access network controller
+        format!("{}/proxy/network/api/s/default/stat/sta", url)
+    };
+    
+    println!("🔍 Discovering devices at: {}", devices_url);
     
     match state.client.get(&devices_url)
         .header(header::COOKIE, cookie_header)
@@ -497,33 +514,47 @@ async fn get_devices(State(state): State<AppState>) -> impl IntoResponse {
         .await 
     {
         Ok(response) => {
+            println!("📱 Device discovery response: HTTP {}", response.status());
             if let Ok(json) = response.json::<serde_json::Value>().await {
+                println!("📊 Device data received: {}", json.to_string().chars().take(200).collect::<String>());
+                
                 let devices: Vec<DeviceInfo> = json["data"]
                     .as_array()
                     .unwrap_or(&vec![])
                     .iter()
                     .map(|device| DeviceInfo {
                         mac: device["mac"].as_str().unwrap_or("").to_string(),
-                        name: device["hostname"].as_str().or(device["name"].as_str()).map(|s| s.to_string()),
-                        device_type: device["oui"].as_str().map(|s| s.to_string()),
+                        name: device["hostname"].as_str()
+                            .or(device["name"].as_str())
+                            .or(device["display_name"].as_str())
+                            .map(|s| s.to_string()),
+                        device_type: device["oui"].as_str()
+                            .or(device["manufacturer"].as_str())
+                            .map(|s| s.to_string()),
                     })
+                    .filter(|d| !d.mac.is_empty()) // Only include devices with MAC addresses
                     .collect();
 
+                println!("✅ Found {} devices", devices.len());
                 Json(DevicesResponse {
                     success: true,
                     devices,
                 })
             } else {
+                println!("❌ Failed to parse device response");
                 Json(DevicesResponse {
                     success: false,
                     devices: vec![],
                 })
             }
         }
-        Err(_) => Json(DevicesResponse {
-            success: false,
-            devices: vec![],
-        }),
+        Err(e) => {
+            println!("❌ Device discovery error: {}", e);
+            Json(DevicesResponse {
+                success: false,
+                devices: vec![],
+            })
+        }
     }
 }
 
@@ -576,8 +607,17 @@ async fn create_block_rule(
         });
     }
 
-    // Create firewall rule in UniFi
-    let firewall_url = format!("{}/api/s/default/rest/firewallrule", url);
+    // For UniFi OS, use the proxy endpoint to access network firewall rules
+    let firewall_url = if url.contains("/proxy/network") {
+        // Traditional controller path
+        format!("{}/api/s/default/rest/firewallrule", url)
+    } else {
+        // UniFi OS path - use proxy to access network controller
+        format!("{}/proxy/network/api/s/default/rest/firewallrule", url)
+    };
+    
+    println!("🔥 Creating firewall rule at: {}", firewall_url);
+
     let firewall_rule = serde_json::json!({
         "name": format!("Parental Block - {}", rule.apps.join(", ")),
         "ruleset": "WAN_IN",
@@ -609,9 +649,11 @@ async fn create_block_rule(
         .await 
     {
         Ok(response) => {
+            println!("🔥 Firewall rule response: HTTP {}", response.status());
             if response.status().is_success() {
                 // Parse response to get the created rule ID
                 let unifi_rule_id = if let Ok(json) = response.json::<serde_json::Value>().await {
+                    println!("📊 Firewall response data: {}", json.to_string().chars().take(200).collect::<String>());
                     json["data"][0]["_id"].as_str().map(|s| s.to_string())
                 } else {
                     None
@@ -640,10 +682,16 @@ async fn create_block_rule(
                     message: Some("Block rule created successfully".to_string()),
                 })
             } else {
-                println!("❌ Failed to create firewall rule: HTTP {}", response.status());
+                // Try to get the error message from response
+                let error_msg = if let Ok(text) = response.text().await {
+                    format!("Failed to create firewall rule: HTTP {} - {}", response.status(), text.chars().take(200).collect::<String>())
+                } else {
+                    format!("Failed to create firewall rule: HTTP {}", response.status())
+                };
+                println!("❌ {}", error_msg);
                 Json(ApiResponse {
                     success: false,
-                    error: Some("Failed to create firewall rule in UniFi".to_string()),
+                    error: Some(error_msg),
                     message: None,
                 })
             }

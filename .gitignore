@@ -6,6 +6,16 @@
 .env.production.local
 .env.*
 
+# Credentials and secrets
+*credentials*
+*secrets*
+*.key
+*.pem
+*.p12
+*.pfx
+config.json
+auth.json
+
 # Dependencies
 node_modules/
 npm-debug.log*

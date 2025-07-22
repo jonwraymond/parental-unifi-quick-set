@@ -60,6 +60,67 @@ We investigated using the **UniFi Site Manager API** with SSO authentication as 
    - ✅ **Choose appropriate permissions** (Site Administrator for full access)
    - ✅ **Document credentials securely**
 
+## Admin Permission Levels Explained
+
+### 🔍 **"Local" vs "Cloud" (Account Storage)**
+
+**"Local Admin" refers to WHERE the account is stored, not the permission level:**
+
+- **🏠 Local Account**: Stored on your UniFi controller (✅ Works with API)
+- **☁️ Cloud Account**: Stored at Ubiquiti (❌ Requires MFA, breaks API)
+
+### 📊 **Permission Levels for Local Accounts**
+
+You can create local accounts with different permission levels:
+
+| Role | Traffic Rules | Device Control | API Access | Recommended For |
+|------|---------------|----------------|-------------|-----------------|
+| **Super Administrator** | ✅ Full Access | ✅ Full Access | ✅ Full API | Controller owners only |
+| **Site Administrator** | ✅ Full Access | ✅ Full Access | ✅ Full API | **✅ Parental Control Apps** |
+| **View Only** | ❌ Read Only | ❌ Read Only | ✅ Read-Only API | Monitoring/reporting only |
+| **Custom Role** | 🔧 Configurable | 🔧 Configurable | 🔧 Variable API | Specific use cases |
+
+### 🎯 **Recommended: Site Administrator (Local)**
+
+For parental control applications, **Site Administrator** is the sweet spot:
+
+**✅ What it CAN do:**
+- Create and modify traffic rules (needed to block apps)
+- Block/unblock client devices  
+- Manage network settings
+- Full API access for your application
+- View all site statistics and logs
+
+**❌ What it CANNOT do:**
+- Create other administrator accounts (security benefit)
+- Access other sites on the controller (if multi-site)
+- Modify global controller settings (security benefit)
+- Delete the controller or perform system operations
+
+### 🔧 **Setup for Different Roles**
+
+#### **Site Administrator (Recommended)**
+```
+Settings > System > Administration > Add New Admin
+- Username: parental-control-app
+- Role: Site Administrator  
+- Site Access: [Your Site Name]
+- ❌ Remote Access (disable this!)
+- ✅ Set Admin Password
+```
+
+#### **Custom Role (Advanced Users)**
+If you want minimal permissions, you can create a custom role with only:
+- ✅ Firewall Rules (manage traffic rules)
+- ✅ Client Management (block/unblock devices)  
+- ❌ Everything else (disabled)
+
+#### **View Only (Not Suitable)**
+This won't work for parental controls because it cannot:
+- ❌ Create traffic rules
+- ❌ Block applications
+- ❌ Modify device settings
+
 ### Best Practices
 
 1. **Dedicated Service Account**: Create a specific admin account just for this application

@@ -16,6 +16,9 @@
 config.json
 auth.json
 
+# Rule database (contains persistent state)
+parental_rules.json
+
 # Dependencies
 node_modules/
 npm-debug.log*

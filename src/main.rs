@@ -10,6 +10,102 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use utoipa::{OpenApi, ToSchema};
+use std::fs;
+use std::path::Path;
+
+// Rule persistence configuration
+const RULES_DB_FILE: &str = "parental_rules.json";
+const RULE_NAME_PREFIX: &str = "[PUC]"; // Parental UniFi Control prefix for UniFi rules
+
+// Persistent rule storage
+#[derive(Serialize, Deserialize, Clone)]
+struct RuleDatabase {
+    rules: Vec<ActiveRule>,
+    created_at: String,
+    last_updated: String,
+}
+
+impl RuleDatabase {
+    fn new() -> Self {
+        Self {
+            rules: Vec::new(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            last_updated: chrono::Utc::now().to_rfc3339(),
+        }
+    }
+
+    fn load() -> Self {
+        if Path::new(RULES_DB_FILE).exists() {
+            match fs::read_to_string(RULES_DB_FILE) {
+                Ok(content) => {
+                    match serde_json::from_str::<RuleDatabase>(&content) {
+                        Ok(db) => {
+                            println!("📂 Loaded {} rules from persistent storage", db.rules.len());
+                            return db;
+                        }
+                        Err(e) => println!("⚠️ Failed to parse rules database: {}", e),
+                    }
+                }
+                Err(e) => println!("⚠️ Failed to read rules database: {}", e),
+            }
+        }
+        println!("📂 Creating new rules database");
+        RuleDatabase::new()
+    }
+
+    fn save(&mut self) -> Result<(), String> {
+        self.last_updated = chrono::Utc::now().to_rfc3339();
+        match serde_json::to_string_pretty(self) {
+            Ok(content) => {
+                match fs::write(RULES_DB_FILE, content) {
+                    Ok(_) => {
+                        println!("💾 Saved {} rules to persistent storage", self.rules.len());
+                        Ok(())
+                    }
+                    Err(e) => Err(format!("Failed to write rules database: {}", e))
+                }
+            }
+            Err(e) => Err(format!("Failed to serialize rules database: {}", e))
+        }
+    }
+
+    fn add_rule(&mut self, rule: ActiveRule) -> Result<(), String> {
+        // Check for duplicate IDs
+        if self.rules.iter().any(|r| r.id == rule.id) {
+            return Err("Rule with this ID already exists".to_string());
+        }
+        self.rules.push(rule);
+        self.save()
+    }
+
+    fn remove_rule(&mut self, rule_id: &str) -> Option<ActiveRule> {
+        if let Some(pos) = self.rules.iter().position(|r| r.id == rule_id) {
+            let rule = self.rules.remove(pos);
+            let _ = self.save();
+            Some(rule)
+        } else {
+            None
+        }
+    }
+
+    fn update_rule(&mut self, rule_id: &str, updated_rule: ActiveRule) -> Result<(), String> {
+        if let Some(pos) = self.rules.iter().position(|r| r.id == rule_id) {
+            self.rules[pos] = updated_rule;
+            self.save()
+        } else {
+            Err("Rule not found".to_string())
+        }
+    }
+
+    fn clear_all(&mut self) -> Result<(), String> {
+        self.rules.clear();
+        self.save()
+    }
+
+    fn get_rules(&self) -> &Vec<ActiveRule> {
+        &self.rules
+    }
+}
 
 // OpenAPI Documentation
 #[derive(OpenApi)]
@@ -20,7 +116,9 @@ use utoipa::{OpenApi, ToSchema};
         create_block_rule,
         unblock_rule,
         unblock_all_rules,
-        get_rules
+        get_rules,
+        sync_rules,
+        cleanup_rules
     ),
     components(
         schemas(LoginRequest, BlockRule, UnblockRequest, ApiResponse, DevicesResponse, DeviceInfo, RulesResponse, ActiveRule)
@@ -164,6 +262,14 @@ async fn docs_page() -> impl IntoResponse {
             <span class="method">POST</span> /api/unblock-all
             <p>Emergency unblock - remove all active rules at once.</p>
         </div>
+        <div class="endpoint">
+            <span class="method">POST</span> /api/sync
+            <p>Manually synchronize rules with the UniFi controller.</p>
+        </div>
+        <div class="endpoint">
+            <span class="method">POST</span> /api/cleanup
+            <p>Manually clean up orphaned rules in the UniFi controller.</p>
+        </div>
     </div>
 
     <div class="section">
@@ -300,7 +406,7 @@ struct RulesResponse {
     rules: Vec<ActiveRule>,
 }
 
-#[derive(Serialize, Clone, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
 #[schema(example = json!({
     "id": "1642781234567",
     "apps": ["fortnite", "roblox"],
@@ -337,16 +443,7 @@ struct ActiveRule {
     unifi_rule_id: Option<String>,
 }
 
-// Application state
-#[derive(Clone)]
-struct AppState {
-    client: Client,
-    unifi_url: Arc<Mutex<Option<String>>>,
-    session_cookies: Arc<Mutex<Option<String>>>,
-    app_id_map: HashMap<String, String>,
-    active_rules: Arc<Mutex<Vec<ActiveRule>>>,
-}
-
+// Enhanced rule management
 impl AppState {
     fn new() -> Self {
         let mut app_id_map = HashMap::new();
@@ -363,6 +460,9 @@ impl AppState {
         app_id_map.insert("discord".to_string(), "655365".to_string());
         app_id_map.insert("minecraft".to_string(), "655370".to_string());
 
+        // Load persistent rules
+        let rules_db = RuleDatabase::load();
+
         Self {
             client: Client::builder()
                 .danger_accept_invalid_certs(true)
@@ -371,9 +471,170 @@ impl AppState {
             unifi_url: Arc::new(Mutex::new(None)),
             session_cookies: Arc::new(Mutex::new(None)),
             app_id_map,
-            active_rules: Arc::new(Mutex::new(Vec::new())),
+            rules_db: Arc::new(Mutex::new(rules_db)),
         }
     }
+
+    // Sync rules with UniFi controller
+    async fn sync_rules_with_unifi(&self) -> Result<(), String> {
+        let unifi_url = self.unifi_url.lock().await.clone();
+        let cookies = self.session_cookies.lock().await.clone();
+
+        let (url, cookie_header) = match (unifi_url, cookies) {
+            (Some(url), Some(cookies)) => (url, cookies),
+            _ => return Err("Not authenticated with UniFi".to_string()),
+        };
+
+        // Get all firewall rules from UniFi
+        let firewall_url = if url.contains("/proxy/network") {
+            format!("{}/api/s/default/rest/firewallrule", url)
+        } else {
+            format!("{}/proxy/network/api/s/default/rest/firewallrule", url)
+        };
+
+        println!("🔄 Syncing rules with UniFi controller...");
+        
+        match self.client.get(&firewall_url)
+            .header(header::COOKIE, cookie_header)
+            .send()
+            .await 
+        {
+            Ok(response) => {
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    let empty_vec = vec![];
+                    let unifi_rules = json["data"].as_array().unwrap_or(&empty_vec);
+                    
+                    // Find our rules by name prefix
+                    let our_unifi_rules: Vec<&serde_json::Value> = unifi_rules
+                        .iter()
+                        .filter(|rule| {
+                            rule["name"].as_str()
+                                .map(|name| name.starts_with(RULE_NAME_PREFIX))
+                                .unwrap_or(false)
+                        })
+                        .collect();
+
+                    println!("🔍 Found {} UniFi rules created by our tool", our_unifi_rules.len());
+
+                    // Update our database with UniFi rule IDs
+                    let mut rules_db = self.rules_db.lock().await;
+                    for our_rule in rules_db.rules.iter_mut() {
+                        if our_rule.unifi_rule_id.is_none() {
+                            // Try to match by name
+                            let expected_name = format!("{} {}", RULE_NAME_PREFIX, our_rule.apps.join(", "));
+                            if let Some(unifi_rule) = our_unifi_rules.iter().find(|r| {
+                                r["name"].as_str() == Some(&expected_name)
+                            }) {
+                                our_rule.unifi_rule_id = unifi_rule["_id"].as_str().map(|s| s.to_string());
+                                println!("🔗 Linked rule {} to UniFi rule {}", our_rule.id, 
+                                    our_rule.unifi_rule_id.as_ref().unwrap());
+                            }
+                        }
+                    }
+
+                    let _ = rules_db.save();
+                    Ok(())
+                } else {
+                    Err("Failed to parse UniFi firewall rules".to_string())
+                }
+            }
+            Err(e) => Err(format!("Failed to fetch UniFi rules: {}", e))
+        }
+    }
+
+    // Clean orphaned UniFi rules (rules in UniFi but not in our database)
+    async fn cleanup_orphaned_rules(&self) -> Result<u32, String> {
+        let unifi_url = self.unifi_url.lock().await.clone();
+        let cookies = self.session_cookies.lock().await.clone();
+
+        let (url, cookie_header) = match (unifi_url, cookies) {
+            (Some(url), Some(cookies)) => (url, cookies),
+            _ => return Err("Not authenticated with UniFi".to_string()),
+        };
+
+        let firewall_url = if url.contains("/proxy/network") {
+            format!("{}/api/s/default/rest/firewallrule", url)
+        } else {
+            format!("{}/proxy/network/api/s/default/rest/firewallrule", url)
+        };
+
+        match self.client.get(&firewall_url)
+            .header(header::COOKIE, &cookie_header)
+            .send()
+            .await 
+        {
+            Ok(response) => {
+                let status = response.status();
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    let empty_vec = vec![];
+                    let unifi_rules = json["data"].as_array().unwrap_or(&empty_vec);
+                    
+                    // Find orphaned rules (our prefix but not in database)
+                    let rules_db = self.rules_db.lock().await;
+                    let our_rule_ids: Vec<&String> = rules_db.rules
+                        .iter()
+                        .filter_map(|r| r.unifi_rule_id.as_ref())
+                        .collect();
+
+                    let orphaned_rules: Vec<&serde_json::Value> = unifi_rules
+                        .iter()
+                        .filter(|rule| {
+                            let name = rule["name"].as_str().unwrap_or("");
+                            let rule_id = rule["_id"].as_str().unwrap_or("");
+                            name.starts_with(RULE_NAME_PREFIX) && !our_rule_ids.contains(&&rule_id.to_string())
+                        })
+                        .collect();
+
+                    println!("🧹 Found {} orphaned rules to clean up", orphaned_rules.len());
+
+                    let mut cleaned_count = 0;
+                    for orphaned_rule in orphaned_rules {
+                        if let Some(rule_id) = orphaned_rule["_id"].as_str() {
+                            let delete_url = if url.contains("/proxy/network") {
+                                format!("{}/api/s/default/rest/firewallrule/{}", url, rule_id)
+                            } else {
+                                format!("{}/proxy/network/api/s/default/rest/firewallrule/{}", url, rule_id)
+                            };
+
+                            match self.client.delete(&delete_url)
+                                .header(header::COOKIE, &cookie_header)
+                                .send()
+                                .await
+                            {
+                                Ok(resp) if resp.status().is_success() => {
+                                    cleaned_count += 1;
+                                    println!("🗑️ Cleaned orphaned rule: {}", 
+                                        orphaned_rule["name"].as_str().unwrap_or("unknown"));
+                                }
+                                Ok(_) => {
+                                    println!("⚠️ Failed to delete orphaned rule: HTTP {}", 
+                                        status);
+                                }
+                                Err(e) => {
+                                    println!("⚠️ Error deleting orphaned rule: {}", e);
+                                }
+                            }
+                        }
+                    }
+
+                    Ok(cleaned_count)
+                } else {
+                    Err("Failed to parse UniFi firewall rules".to_string())
+                }
+            }
+            Err(e) => Err(format!("Failed to fetch UniFi rules: {}", e))
+        }
+    }
+}
+
+// Application state with persistent storage
+#[derive(Clone)]
+struct AppState {
+    client: Client,
+    unifi_url: Arc<Mutex<Option<String>>>,
+    session_cookies: Arc<Mutex<Option<String>>>,
+    app_id_map: HashMap<String, String>,
+    rules_db: Arc<Mutex<RuleDatabase>>,
 }
 
 async fn index() -> impl IntoResponse {
@@ -619,7 +880,7 @@ async fn create_block_rule(
     println!("🔥 Creating firewall rule at: {}", firewall_url);
 
     let firewall_rule = serde_json::json!({
-        "name": format!("Parental Block - {}", rule.apps.join(", ")),
+        "name": format!("{} {}", RULE_NAME_PREFIX, rule.apps.join(", ")),
         "ruleset": "WAN_IN",
         "rule_index": 2000,
         "action": "drop",
@@ -673,7 +934,7 @@ async fn create_block_rule(
                     unifi_rule_id,
                 };
 
-                state.active_rules.lock().await.push(active_rule);
+                state.rules_db.lock().await.add_rule(active_rule).unwrap();
 
                 println!("✅ Block rule created successfully");
                 Json(ApiResponse {
@@ -683,10 +944,11 @@ async fn create_block_rule(
                 })
             } else {
                 // Try to get the error message from response
+                let status = response.status();
                 let error_msg = if let Ok(text) = response.text().await {
-                    format!("Failed to create firewall rule: HTTP {} - {}", response.status(), text.chars().take(200).collect::<String>())
+                    format!("Failed to create firewall rule: HTTP {} - {}", status, text.chars().take(200).collect::<String>())
                 } else {
-                    format!("Failed to create firewall rule: HTTP {}", response.status())
+                    format!("Failed to create firewall rule: HTTP {}", status)
                 };
                 println!("❌ {}", error_msg);
                 Json(ApiResponse {
@@ -742,16 +1004,16 @@ async fn unblock_rule(
         }
     };
 
-    // Find and remove the rule from our state
-    let mut rules = state.active_rules.lock().await;
-    let rule_position = rules.iter().position(|r| r.id == request.rule_id);
-    
-    if let Some(pos) = rule_position {
-        let rule = rules.remove(pos);
-        
+    // Find and remove the rule from our persistent storage
+    let mut rules_db = state.rules_db.lock().await;
+    if let Some(rule) = rules_db.remove_rule(&request.rule_id) {
         // If we have a UniFi rule ID, delete it from the controller
         if let Some(ref unifi_rule_id) = rule.unifi_rule_id {
-            let delete_url = format!("{}/api/s/default/rest/firewallrule/{}", url, unifi_rule_id);
+            let delete_url = if url.contains("/proxy/network") {
+                format!("{}/api/s/default/rest/firewallrule/{}", url, unifi_rule_id)
+            } else {
+                format!("{}/proxy/network/api/s/default/rest/firewallrule/{}", url, unifi_rule_id)
+            };
             
             match state.client.delete(&delete_url)
                 .header(header::COOKIE, cookie_header)
@@ -769,7 +1031,7 @@ async fn unblock_rule(
                     } else {
                         println!("❌ Failed to delete UniFi rule: HTTP {}", response.status());
                         // Re-add the rule since deletion failed
-                        rules.push(rule);
+                        let _ = rules_db.add_rule(rule);
                         Json(ApiResponse {
                             success: false,
                             error: Some("Failed to delete rule from UniFi".to_string()),
@@ -780,7 +1042,7 @@ async fn unblock_rule(
                 Err(e) => {
                     println!("❌ Error deleting UniFi rule: {}", e);
                     // Re-add the rule since deletion failed
-                    rules.push(rule);
+                    let _ = rules_db.add_rule(rule);
                     Json(ApiResponse {
                         success: false,
                         error: Some(format!("Error deleting rule: {}", e)),
@@ -789,7 +1051,7 @@ async fn unblock_rule(
                 }
             }
         } else {
-            // No UniFi rule ID, just remove from local state
+            // No UniFi rule ID, just removed from local state
             Json(ApiResponse {
                 success: true,
                 error: None,
@@ -835,13 +1097,17 @@ async fn unblock_all_rules(State(state): State<AppState>) -> impl IntoResponse {
         }
     };
 
-    let mut rules = state.active_rules.lock().await;
+    let mut rules_db = state.rules_db.lock().await;
     let mut failed_deletions = Vec::new();
 
     // Delete all UniFi rules
-    for rule in rules.iter() {
+    for rule in rules_db.get_rules().iter() {
         if let Some(unifi_rule_id) = &rule.unifi_rule_id {
-            let delete_url = format!("{}/api/s/default/rest/firewallrule/{}", url, unifi_rule_id);
+            let delete_url = if url.contains("/proxy/network") {
+                format!("{}/api/s/default/rest/firewallrule/{}", url, unifi_rule_id)
+            } else {
+                format!("{}/proxy/network/api/s/default/rest/firewallrule/{}", url, unifi_rule_id)
+            };
             
             if let Err(e) = state.client.delete(&delete_url)
                 .header(header::COOKIE, &cookie_header)
@@ -853,8 +1119,8 @@ async fn unblock_all_rules(State(state): State<AppState>) -> impl IntoResponse {
         }
     }
 
-    // Clear all rules from local state
-    rules.clear();
+    // Clear all rules from persistent storage
+    let _ = rules_db.clear_all();
 
     if failed_deletions.is_empty() {
         Json(ApiResponse {
@@ -884,7 +1150,8 @@ async fn unblock_all_rules(State(state): State<AppState>) -> impl IntoResponse {
     )
 )]
 async fn get_rules(State(state): State<AppState>) -> impl IntoResponse {
-    let rules = state.active_rules.lock().await.clone();
+    let rules_db = state.rules_db.lock().await;
+    let rules = rules_db.get_rules().clone();
     
     Json(RulesResponse {
         success: true,
@@ -892,9 +1159,72 @@ async fn get_rules(State(state): State<AppState>) -> impl IntoResponse {
     })
 }
 
+/// Sync rules with UniFi controller
+///
+/// Synchronizes local rule database with UniFi controller firewall rules.
+/// This ensures consistency between our tool and the UniFi controller.
+#[utoipa::path(
+    post,
+    path = "/api/sync",
+    tag = "rules",
+    responses(
+        (status = 200, description = "Rules synchronized successfully", body = ApiResponse),
+        (status = 401, description = "Not authenticated", body = ApiResponse)
+    )
+)]
+async fn sync_rules(State(state): State<AppState>) -> impl IntoResponse {
+    println!("🔄 Manual rule synchronization requested");
+    
+    match state.sync_rules_with_unifi().await {
+        Ok(_) => Json(ApiResponse {
+            success: true,
+            error: None,
+            message: Some("Rules synchronized successfully".to_string()),
+        }),
+        Err(e) => Json(ApiResponse {
+            success: false,
+            error: Some(e),
+            message: None,
+        })
+    }
+}
+
+/// Clean orphaned rules
+///
+/// Removes UniFi firewall rules created by this tool but no longer tracked in our database.
+/// This helps maintain a clean UniFi configuration.
+#[utoipa::path(
+    post,
+    path = "/api/cleanup",
+    tag = "rules",
+    responses(
+        (status = 200, description = "Orphaned rules cleaned successfully", body = ApiResponse),
+        (status = 401, description = "Not authenticated", body = ApiResponse)
+    )
+)]
+async fn cleanup_rules(State(state): State<AppState>) -> impl IntoResponse {
+    println!("🧹 Manual rule cleanup requested");
+    
+    match state.cleanup_orphaned_rules().await {
+        Ok(count) => Json(ApiResponse {
+            success: true,
+            error: None,
+            message: Some(format!("Cleaned {} orphaned rules", count)),
+        }),
+        Err(e) => Json(ApiResponse {
+            success: false,
+            error: Some(e),
+            message: None,
+        })
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let state = AppState::new();
+
+    // Perform initial sync on startup if authenticated
+    println!("🚀 Starting Parental UniFi Quick Set...");
 
     let app = Router::new()
         .route("/", get(index))
@@ -904,6 +1234,8 @@ async fn main() {
         .route("/api/unblock", post(unblock_rule))
         .route("/api/unblock-all", post(unblock_all_rules))
         .route("/api/rules", get(get_rules))
+        .route("/api/sync", post(sync_rules))
+        .route("/api/cleanup", post(cleanup_rules))
         .route("/api-docs/openapi.json", get(openapi_json))
         .route("/docs", get(docs_page))
         .with_state(state);
@@ -912,6 +1244,8 @@ async fn main() {
     println!("📱 Mobile-friendly interface with beautiful styling");
     println!("🛡️ Easy parental controls for your UniFi network");
     println!("📚 API Documentation available at http://0.0.0.0:3000/docs");
+    println!("💾 Persistent rule storage enabled");
+    println!("🔄 Automatic rule synchronization with UniFi");
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await

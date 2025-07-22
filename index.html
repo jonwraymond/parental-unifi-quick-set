@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parental Controls | UniFi Network</title>
+    <title>🛡️ Parental UniFi Control</title>
     <style>
         * {
             margin: 0;
@@ -11,110 +11,419 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --primary-bg: #0a0e1a;
+            --secondary-bg: #1a1f2e;
+            --card-bg: #242938;
+            --card-hover: #2d3447;
+            --accent-blue: #0ea5e9;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --glow-blue: rgba(14, 165, 233, 0.3);
+            --glow-cyan: rgba(6, 182, 212, 0.2);
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--primary-bg);
+            color: var(--text-primary);
             min-height: 100vh;
-            color: #1e293b;
-            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated background with moving particles */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, 
+                var(--primary-bg) 0%, 
+                #0f172a 25%, 
+                #1e293b  50%, 
+                var(--primary-bg) 100%);
+            z-index: -2;
+            animation: backgroundShift 20s ease-in-out infinite;
+        }
+
+        /* Floating network dots animation */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, rgba(14, 165, 233, 0.3), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(6, 182, 212, 0.2), transparent),
+                radial-gradient(1px 1px at 90px 40px, rgba(139, 92, 246, 0.2), transparent),
+                radial-gradient(1px 1px at 130px 80px, rgba(14, 165, 233, 0.1), transparent);
+            background-repeat: repeat;
+            background-size: 200px 100px, 300px 150px, 250px 120px, 180px 90px;
+            z-index: -1;
+            animation: floatingDots 30s linear infinite;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+            50% { transform: scale(1.02) rotate(0.5deg); opacity: 0.9; }
+        }
+
+        @keyframes floatingDots {
+            0% { transform: translateX(0) translateY(0); }
+            33% { transform: translateX(-10px) translateY(-10px); }
+            66% { transform: translateX(10px) translateY(-5px); }
+            100% { transform: translateX(0) translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.02); opacity: 0.8; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px var(--glow-blue); }
+            50% { box-shadow: 0 0 30px var(--glow-cyan), 0 0 40px var(--glow-blue); }
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 48px;
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
+            padding: 40px 20px;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, var(--card-bg) 0%, var(--secondary-bg) 100%);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            animation: slideIn 0.8s ease-out;
+            position: relative;
+            overflow: hidden;
         }
 
-        .header .logo {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            margin-bottom: 16px;
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.1), transparent);
+            animation: shimmer 3s ease-in-out infinite;
         }
 
-        .header .logo svg {
-            width: 48px;
-            height: 48px;
+        @keyframes shimmer {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: 100%; }
         }
 
         .header h1 {
-            font-size: 2.25rem;
-            font-weight: 600;
-            color: #0369a1;
-            margin-bottom: 8px;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            animation: pulse 4s ease-in-out infinite;
         }
 
-        .header p {
-            font-size: 1.125rem;
-            color: #64748b;
-            font-weight: 400;
+                 .unifi-logo {
+             display: inline-block;
+             padding: 8px 16px;
+             background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+             border-radius: 8px;
+             font-weight: 700;
+             font-size: 1.2rem;
+             margin-right: 10px;
+             animation: glow 3s ease-in-out infinite;
+             color: var(--primary-bg);
+             text-shadow: none;
+         }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-dot.connected {
+            background: var(--success);
         }
 
         .card {
-            background: white;
+            background: var(--card-bg);
             border-radius: 16px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            margin-bottom: 24px;
+            padding: 30px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            animation: slideIn 0.6s ease-out;
+            position: relative;
             overflow: hidden;
-            border: 1px solid #e2e8f0;
-            transition: all 0.2s ease;
         }
 
         .card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transform: translateY(-1px);
+            background: var(--card-hover);
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 20px var(--glow-blue);
         }
 
-        .card-header {
-            padding: 24px;
-            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-            color: white;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan), var(--accent-purple));
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
-        .card-header h2 {
-            font-size: 1.375rem;
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card h2 {
+            color: var(--accent-blue);
+            margin-bottom: 20px;
+            font-size: 1.4rem;
             font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .card-header p {
-            font-size: 0.875rem;
-            opacity: 0.9;
-            font-weight: 400;
-        }
-
-        .card-body {
-            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .form-group {
             margin-bottom: 20px;
+            position: relative;
         }
 
-        label {
+        .form-group label {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
             font-weight: 500;
-            color: #374151;
-            font-size: 0.875rem;
+            font-size: 0.9rem;
         }
 
-        .label-with-tooltip {
+        input[type="text"],
+        input[type="password"],
+        input[type="url"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 15px var(--glow-blue);
+            background: var(--card-bg);
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            color: white;
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--card-bg), var(--secondary-bg));
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--card-hover);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error), #dc2626);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #d97706);
+            color: white;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .quick-action {
+            padding: 16px;
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quick-action:hover {
+            background: var(--card-hover);
+            border-color: var(--accent-blue);
+            transform: scale(1.02);
+        }
+
+        .quick-action .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .devices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .device-card {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .device-card:hover {
+            background: var(--card-hover);
+            border-color: var(--accent-blue);
+            transform: translateY(-1px);
+        }
+
+        .rules-list {
+            margin-top: 20px;
+        }
+
+        .rule-item {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .rule-item:hover {
+            background: var(--card-hover);
+            border-color: var(--accent-blue);
+        }
+
+        .rule-header {
             display: flex;
+            justify-content: between;
             align-items: center;
-            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .rule-apps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .app-tag {
+            background: var(--accent-blue);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
         }
 
         .tooltip {
@@ -122,1026 +431,702 @@
             cursor: help;
         }
 
-        .tooltip-icon {
-            width: 16px;
-            height: 16px;
-            color: #6b7280;
-            transition: color 0.2s ease;
-        }
-
-        .tooltip:hover .tooltip-icon {
-            color: #0ea5e9;
-        }
-
-        .tooltip-content {
+        .tooltip .tooltip-content {
             position: absolute;
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
-            background: #1f2937;
-            color: white;
-            padding: 8px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
-            font-size: 0.75rem;
+            padding: 10px 15px;
+            font-size: 0.85rem;
             white-space: nowrap;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             z-index: 1000;
-            margin-bottom: 4px;
-        }
-
-        .tooltip-content::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 4px solid transparent;
-            border-top-color: #1f2937;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
         .tooltip:hover .tooltip-content {
             opacity: 1;
             visibility: visible;
+            transform: translateX(-50%) translateY(-5px);
         }
 
-        input[type="text"], 
-        input[type="password"], 
-        select, 
-        input[type="datetime-local"],
-        input[type="number"] {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            background: #f9fafb;
-            color: #374151;
+        .tooltip-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-left: 8px;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
         }
 
-        input:focus, select:focus {
-            outline: none;
-            border-color: #0ea5e9;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        .tooltip:hover .tooltip-icon {
+            opacity: 1;
         }
 
-        .btn {
-            display: inline-flex;
+        .floating-api-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            border-radius: 50%;
+            display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
             justify-content: center;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
             color: white;
+            text-decoration: none;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 20px rgba(14, 165, 233, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            animation: glow 4s ease-in-out infinite;
         }
 
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
+        .floating-api-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 30px rgba(14, 165, 233, 0.6);
         }
 
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-        }
-
-        .btn-warning {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: white;
-        }
-
-        .btn-warning:hover {
-            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-        }
-
-        .btn-secondary {
-            background: #f1f5f9;
-            color: #475569;
-            border: 1px solid #e2e8f0;
-        }
-
-        .btn-secondary:hover {
-            background: #e2e8f0;
-            color: #334155;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 24px;
-        }
-
-        .status {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin: 16px 0;
-            font-weight: 500;
-            font-size: 14px;
-            border: 1px solid;
-        }
-
-        .status.success {
-            background: #f0fdf4;
-            color: #166534;
-            border-color: #22c55e;
-        }
-
-        .status.error {
-            background: #fef2f2;
-            color: #991b1b;
-            border-color: #ef4444;
-        }
-
-        .status.info {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border-color: #3b82f6;
-        }
-
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-
-        .quick-action {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        .quick-action:hover {
-            border-color: #0ea5e9;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.15);
-        }
-
-        .quick-action .icon {
-            font-size: 2.5rem;
-            margin-bottom: 12px;
-            display: block;
-        }
-
-        .quick-action h3 {
-            margin-bottom: 8px;
-            color: #1e293b;
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        .quick-action p {
-            color: #64748b;
-            font-size: 0.875rem;
-            line-height: 1.4;
-        }
-
-        .rule-item {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .rule-item:hover {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-        }
-
-        .rule-item.active {
-            border-color: #10b981;
-            background: #f0fdf4;
-        }
-
-        .rule-item.disabled {
-            border-color: #f59e0b;
-            background: #fffbeb;
-        }
-
-        .rule-header {
+        .sync-controls {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .rule-title {
-            font-weight: 600;
-            font-size: 1rem;
-            color: #1e293b;
-        }
-
-        .rule-status {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.025em;
-        }
-
-        .rule-status.active {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .rule-status.disabled {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .rule-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
+            gap: 15px;
+            margin-top: 20px;
             flex-wrap: wrap;
         }
 
-        .rule-actions .btn {
-            padding: 8px 16px;
-            font-size: 13px;
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .quick-actions {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+            
+            .devices-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .sync-controls {
+                flex-direction: column;
+            }
         }
 
+        /* Loading animations */
         .loading {
-            text-align: center;
-            padding: 48px;
+            opacity: 0.6;
+            pointer-events: none;
+            position: relative;
         }
 
-        .spinner {
-            border: 3px solid #f1f5f9;
-            border-top: 3px solid #0ea5e9;
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid var(--accent-blue);
+            border-top-color: transparent;
             border-radius: 50%;
-            width: 32px;
-            height: 32px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 16px;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
 
-        .hidden {
-            display: none;
-        }
-
-        .app-icon {
-            display: inline-block;
-            margin-right: 8px;
-            font-size: 1.125rem;
-        }
-
-        .schedule-info {
-            font-size: 0.875rem;
-            color: #64748b;
-            margin-top: 8px;
-        }
-
-        .device-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 12px;
-        }
-
-        .device-tag {
-            background: #e2e8f0;
-            color: #475569;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
+        /* Success/Error message styling */
+        .message {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin: 15px 0;
             font-weight: 500;
+            animation: slideIn 0.5s ease-out;
         }
 
-        .api-link {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: #0ea5e9;
-            color: white;
-            padding: 12px 16px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 14px;
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
-            transition: all 0.2s ease;
-            z-index: 1000;
+        .message.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
         }
 
-        .api-link:hover {
-            background: #0284c7;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
-        }
-
-        /* Mobile Optimizations */
-        @media (max-width: 768px) {
-            .container {
-                padding: 16px;
-            }
-
-            .header {
-                padding: 24px 20px;
-            }
-
-            .header h1 {
-                font-size: 1.875rem;
-            }
-
-            .card-header, .card-body {
-                padding: 20px;
-            }
-
-            .grid {
-                grid-template-columns: 1fr;
-            }
-
-            .quick-actions {
-                grid-template-columns: 1fr;
-            }
-
-            .rule-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-
-            .rule-actions {
-                flex-direction: column;
-            }
-
-            .api-link {
-                bottom: 16px;
-                right: 16px;
-                padding: 10px 12px;
-                font-size: 13px;
-            }
-        }
-
-        .connection-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #ef4444;
-        }
-
-        .status-dot.connected {
-            background: #10b981;
-        }
-
-        .unifi-logo {
-            width: 32px;
-            height: 32px;
-            background: #0ea5e9;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 700;
-            font-size: 14px;
+        .message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <div class="logo">
-                <div class="unifi-logo">Ui</div>
-                <div>
-                    <h1>Parental Controls</h1>
-                    <p>Manage your family's network access with ease</p>
-                </div>
+        <header class="header">
+            <h1>
+                <span class="unifi-logo">Ui</span>
+                🛡️ Parental Control Center
+            </h1>
+                         <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                 Simple. Powerful. Intelligent.
+             </p>
+            <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;">
+                <span class="status-indicator">
+                    <span class="status-dot" id="connection-status"></span>
+                    <span id="connection-text">Disconnected</span>
+                </span>
+                <span class="status-indicator">
+                    <span>💾</span>
+                    <span>Persistent Storage</span>
+                </span>
+                <span class="status-indicator">
+                    <span>🔄</span>
+                    <span>Auto-Sync</span>
+                </span>
             </div>
-        </div>
+        </header>
 
-        <!-- Login Section -->
-        <div id="loginSection" class="card">
-            <div class="card-header">
-                <h2>Connect to UniFi Network</h2>
-                <p>Sign in to your UniFi controller to manage network access</p>
-            </div>
-            <div class="card-body">
+        <!-- Connection Card -->
+        <div class="card" id="connection-card">
+            <h2>🔐 Connect to UniFi Network</h2>
+            <form id="login-form">
                 <div class="form-group">
-                    <div class="label-with-tooltip">
-                        <label for="unifiUrl">UniFi Controller URL</label>
-                        <div class="tooltip">
-                            <svg class="tooltip-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <label for="unifi-url">
+                        UniFi Controller URL
+                        <span class="tooltip">
+                            <svg class="tooltip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
                             </svg>
                             <div class="tooltip-content">
-                                Usually https://192.168.1.1:8443 or your UDM IP address
-                                <br><a href="docs/UNIFI_SETUP_GUIDE.md" style="color: #60a5fa;">Setup Guide</a>
+                                Your UniFi controller URL (e.g., https://192.168.1.1:443)
                             </div>
-                        </div>
-                    </div>
-                    <input type="text" id="unifiUrl" placeholder="https://192.168.1.1:8443" value="https://192.168.1.1:8443">
+                        </span>
+                    </label>
+                    <input type="url" id="unifi-url" placeholder="https://192.168.0.1:443" required>
                 </div>
+
                 <div class="form-group">
-                    <div class="label-with-tooltip">
-                        <label for="username">Username</label>
-                        <div class="tooltip">
-                            <svg class="tooltip-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <label for="username">
+                        Username
+                        <span class="tooltip">
+                            <svg class="tooltip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                             </svg>
                             <div class="tooltip-content">
-                                Local admin account recommended (not cloud account)
-                                <br><a href="docs/UNIFI_SETUP_GUIDE.md#create-local-admin" style="color: #60a5fa;">Account Setup</a>
+                                Local admin username (not cloud account)
                             </div>
-                        </div>
-                    </div>
-                    <input type="text" id="username" placeholder="parental-control-app">
+                        </span>
+                    </label>
+                    <input type="text" id="username" placeholder="Local admin username" required>
                 </div>
+
                 <div class="form-group">
-                    <div class="label-with-tooltip">
-                        <label for="password">Password</label>
-                        <div class="tooltip">
-                            <svg class="tooltip-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <label for="password">
+                        Password
+                        <span class="tooltip">
+                            <svg class="tooltip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
                             </svg>
                             <div class="tooltip-content">
                                 Use a strong password for your local admin account
                             </div>
-                        </div>
-                    </div>
-                    <input type="password" id="password" placeholder="Your secure password">
+                        </span>
+                    </label>
+                    <input type="password" id="password" placeholder="Your secure password" required>
                 </div>
-                <button class="btn btn-primary" onclick="login()">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                    </svg>
-                    Connect to Network
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    🔗 Connect to Network
                 </button>
-                <div id="loginStatus"></div>
-                <div class="connection-status" style="margin-top: 16px;">
-                    <div class="status-dot" id="connectionDot"></div>
-                    <span id="connectionText">Not connected</span>
-                </div>
-            </div>
+            </form>
+
+            <div id="message-area"></div>
         </div>
 
-        <!-- Main Dashboard -->
-        <div id="dashboard" class="hidden">
+        <!-- Rule Management Card -->
+        <div class="card" id="control-card" style="display: none;">
+            <h2>🛡️ Parental Control Rules</h2>
+            
             <!-- Quick Actions -->
             <div class="quick-actions">
-                <div class="quick-action" onclick="quickBlock('fortnite')" data-tooltip="Block gaming apps instantly">
-                    <div class="icon">🎮</div>
-                    <h3>Block Gaming</h3>
-                    <p>Block Fortnite, Roblox, and other games</p>
+                <div class="quick-action" onclick="blockGaming()" data-tooltip="Block popular gaming apps">
+                    <span class="icon">🎮</span>
+                    <div>Block Gaming</div>
                 </div>
-                <div class="quick-action" onclick="quickBlock('youtube')" data-tooltip="Block video streaming services">
-                    <div class="icon">📺</div>
-                    <h3>Block Videos</h3>
-                    <p>Block YouTube, TikTok, and streaming</p>
+                <div class="quick-action" onclick="blockSocial()" data-tooltip="Block social media apps">
+                    <span class="icon">📱</span>
+                    <div>Block Social</div>
                 </div>
-                <div class="quick-action" onclick="showScheduler()" data-tooltip="Set up homework time and bedtime rules">
-                    <div class="icon">⏰</div>
-                    <h3>Schedule Rules</h3>
-                    <p>Set bedtime and homework hours</p>
+                <div class="quick-action" onclick="blockVideo()" data-tooltip="Block video streaming">
+                    <span class="icon">📺</span>
+                    <div>Block Video</div>
                 </div>
-                <div class="quick-action" onclick="unblockAll()" data-tooltip="Remove all active blocking rules">
-                    <div class="icon">✅</div>
-                    <h3>Unblock All</h3>
-                    <p>Remove all active blocks</p>
+                <div class="quick-action" onclick="unblockAll()" data-tooltip="Emergency unblock all">
+                    <span class="icon">🚨</span>
+                    <div>Unblock All</div>
                 </div>
             </div>
 
-            <!-- Create New Rule -->
-            <div class="card">
-                <div class="card-header">
-                    <h2>Create Blocking Rule</h2>
-                    <p>Block apps and websites with flexible scheduling options</p>
-                </div>
-                <div class="card-body">
-                    <div class="grid">
-                        <div>
-                            <div class="form-group">
-                                <div class="label-with-tooltip">
-                                    <label for="appSelect">Apps to Block</label>
-                                    <div class="tooltip">
-                                        <svg class="tooltip-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        <div class="tooltip-content">
-                                            Select multiple apps by holding Ctrl/Cmd and clicking
-                                        </div>
-                                    </div>
-                                </div>
-                                <select id="appSelect" multiple>
-                                    <option value="fortnite">🎮 Fortnite</option>
-                                    <option value="roblox">🟩 Roblox</option>
-                                    <option value="youtube">📺 YouTube</option>
-                                    <option value="tiktok">🎵 TikTok</option>
-                                    <option value="instagram">📷 Instagram</option>
-                                    <option value="snapchat">👻 Snapchat</option>
-                                    <option value="netflix">🎬 Netflix</option>
-                                    <option value="twitch">🎮 Twitch</option>
-                                    <option value="discord">💬 Discord</option>
-                                    <option value="minecraft">⛏️ Minecraft</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <div class="label-with-tooltip">
-                                    <label for="blockType">Block Type</label>
-                                    <div class="tooltip">
-                                        <svg class="tooltip-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        <div class="tooltip-content">
-                                            Choose how long to block the selected apps
-                                        </div>
-                                    </div>
-                                </div>
-                                <select id="blockType" onchange="toggleScheduleOptions()">
-                                    <option value="permanent">🚫 Permanent Block</option>
-                                    <option value="duration">⏱️ Block for Duration</option>
-                                    <option value="until">🕐 Block Until Time</option>
-                                    <option value="schedule">📅 Recurring Schedule</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="form-group" id="durationGroup" style="display: none;">
-                                <label for="duration">Duration (hours)</label>
-                                <input type="number" id="duration" min="1" max="24" value="2">
-                            </div>
-                            <div class="form-group" id="untilGroup" style="display: none;">
-                                <label for="untilTime">Block Until</label>
-                                <input type="datetime-local" id="untilTime">
-                            </div>
-                            <div class="form-group" id="scheduleGroup" style="display: none;">
-                                <label for="scheduleType">Schedule Type</label>
-                                <select id="scheduleType">
-                                    <option value="bedtime">😴 Bedtime (8 PM - 7 AM)</option>
-                                    <option value="homework">📚 Homework Time (3 PM - 6 PM)</option>
-                                    <option value="weekday">📅 School Days Only</option>
-                                    <option value="weekend">🎉 Weekends Only</option>
-                                    <option value="custom">⚙️ Custom Schedule</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <div class="label-with-tooltip">
-                                    <label for="deviceSelect">Target Devices</label>
-                                    <div class="tooltip">
-                                        <svg class="tooltip-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        <div class="tooltip-content">
-                                            Choose specific devices or apply to all network devices
-                                        </div>
-                                    </div>
-                                </div>
-                                <select id="deviceSelect" multiple>
-                                    <option value="all" selected>All Devices</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <button class="btn btn-danger" onclick="createRule()">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
-                        </svg>
-                        Create Block Rule
-                    </button>
-                </div>
+            <!-- Rule Synchronization Controls -->
+            <div class="sync-controls">
+                <button class="btn btn-secondary" onclick="syncRules()">
+                    🔄 Sync Rules
+                </button>
+                <button class="btn btn-warning" onclick="cleanupOrphans()">
+                    🧹 Cleanup Orphans
+                </button>
+                <button class="btn btn-secondary" onclick="refreshRules()">
+                    📋 Refresh List
+                </button>
             </div>
 
-            <!-- Active Rules -->
-            <div class="card">
-                <div class="card-header">
-                    <h2>Active Rules</h2>
-                    <p>Manage your current blocking rules and schedules</p>
+            <!-- Custom Rule Form -->
+            <form id="block-form" style="margin-top: 30px;">
+                <div class="form-group">
+                    <label for="apps">Apps to Block (comma-separated)</label>
+                    <input type="text" id="apps" placeholder="fortnite, roblox, youtube" required>
                 </div>
-                <div class="card-body">
-                    <div id="rulesContainer">
-                        <div class="loading">
-                            <div class="spinner"></div>
-                            <p style="color: #64748b;">Loading rules...</p>
-                        </div>
-                    </div>
+
+                <div class="form-group">
+                    <label for="rule-type">Block Type</label>
+                    <select id="rule-type" required>
+                        <option value="permanent">Permanent</option>
+                        <option value="duration">Duration (hours)</option>
+                        <option value="schedule">Scheduled</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="duration-group" style="display: none;">
+                    <label for="duration">Duration (hours)</label>
+                    <input type="number" id="duration" min="1" max="168" placeholder="2">
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    🚫 Create Block Rule
+                </button>
+            </form>
+
+            <!-- Active Rules List -->
+            <div id="rules-container">
+                <h3 style="margin-top: 30px; color: var(--accent-blue);">📋 Active Rules</h3>
+                <div id="rules-list" class="rules-list">
+                    <!-- Rules will be populated here -->
                 </div>
             </div>
         </div>
 
-        <div id="status"></div>
+        <!-- Device Discovery Card -->
+        <div class="card" id="devices-card" style="display: none;">
+            <h2>📱 Network Devices (<span id="device-count">0</span>)</h2>
+            <button class="btn btn-secondary" onclick="refreshDevices()" style="margin-bottom: 20px;">
+                🔄 Refresh Devices
+            </button>
+            <div id="devices-list" class="devices-grid">
+                <!-- Devices will be populated here -->
+            </div>
+        </div>
     </div>
 
-    <!-- API Documentation Link -->
-    <a href="/docs" class="api-link" target="_blank">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-        </svg>
-        API Docs
+    <!-- Floating API Documentation Button -->
+    <a href="/docs" class="floating-api-btn" title="API Documentation">
+        📚
     </a>
 
     <script>
         let currentSession = null;
         let activeRules = [];
+        let networkDevices = [];
 
-        // App Icons Mapping
-        const appIcons = {
-            'fortnite': '🎮',
-            'roblox': '🟩',
-            'youtube': '📺',
-            'tiktok': '🎵',
-            'instagram': '📷',
-            'snapchat': '👻',
-            'netflix': '🎬',
-            'twitch': '🎮',
-            'discord': '💬',
-            'minecraft': '⛏️'
-        };
-
-        // Initialize the app
+        // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            loadSavedRules();
-            setDefaultDateTime();
-            updateConnectionStatus(false);
+            setupEventListeners();
+            loadStoredSession();
+            refreshRules();
         });
 
-        function setDefaultDateTime() {
-            const now = new Date();
-            now.setHours(now.getHours() + 2); // Default to 2 hours from now
-            document.getElementById('untilTime').value = now.toISOString().slice(0, 16);
+        function setupEventListeners() {
+            // Login form
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+            
+            // Block form
+            document.getElementById('block-form').addEventListener('submit', handleCreateRule);
+            
+            // Rule type change
+            document.getElementById('rule-type').addEventListener('change', function() {
+                const durationGroup = document.getElementById('duration-group');
+                durationGroup.style.display = this.value === 'duration' ? 'block' : 'none';
+            });
+
+            // Add smooth scrolling for navigation
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            });
         }
 
-        function updateConnectionStatus(connected) {
-            const dot = document.getElementById('connectionDot');
-            const text = document.getElementById('connectionText');
-            
-            if (connected) {
-                dot.classList.add('connected');
-                text.textContent = 'Connected to UniFi';
-            } else {
-                dot.classList.remove('connected');
-                text.textContent = 'Not connected';
+        function loadStoredSession() {
+            const stored = localStorage.getItem('unifi_session');
+            if (stored) {
+                try {
+                    currentSession = JSON.parse(stored);
+                    updateConnectionStatus(true);
+                    showControlCard();
+                } catch (e) {
+                    localStorage.removeItem('unifi_session');
+                }
             }
         }
 
-        function toggleScheduleOptions() {
-            const blockType = document.getElementById('blockType').value;
+        async function handleLogin(e) {
+            e.preventDefault();
             
-            // Hide all schedule options
-            document.getElementById('durationGroup').style.display = 'none';
-            document.getElementById('untilGroup').style.display = 'none';
-            document.getElementById('scheduleGroup').style.display = 'none';
-            
-            // Show relevant option
-            if (blockType === 'duration') {
-                document.getElementById('durationGroup').style.display = 'block';
-            } else if (blockType === 'until') {
-                document.getElementById('untilGroup').style.display = 'block';
-            } else if (blockType === 'schedule') {
-                document.getElementById('scheduleGroup').style.display = 'block';
-            }
-        }
-
-        async function login() {
-            const url = document.getElementById('unifiUrl').value;
+            const url = document.getElementById('unifi-url').value;
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            
-            showStatus('🔐 Connecting to UniFi controller...', 'info');
-            
+
+            setLoading('login-form', true);
+            clearMessages();
+
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url, username, password })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     currentSession = { url, username, password };
-                    showStatus('✅ Connected successfully to UniFi network!', 'success');
+                    localStorage.setItem('unifi_session', JSON.stringify(currentSession));
+                    
+                    showMessage('✅ Connected successfully to UniFi network!', 'success');
                     updateConnectionStatus(true);
-                    document.getElementById('loginSection').classList.add('hidden');
-                    document.getElementById('dashboard').classList.remove('hidden');
-                    loadDevices();
-                    loadRules();
+                    showControlCard();
+                    await refreshDevices();
+                    await refreshRules();
                 } else {
-                    showStatus(`❌ Connection failed: ${result.error}`, 'error');
+                    showMessage('❌ ' + (result.error || 'Connection failed'), 'error');
                     updateConnectionStatus(false);
                 }
             } catch (error) {
-                showStatus(`❌ Connection error: ${error.message}`, 'error');
+                showMessage('❌ Network error: ' + error.message, 'error');
                 updateConnectionStatus(false);
+            } finally {
+                setLoading('login-form', false);
             }
         }
 
-        async function loadDevices() {
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('connection-status');
+            const text = document.getElementById('connection-text');
+            
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function showControlCard() {
+            document.getElementById('control-card').style.display = 'block';
+            document.getElementById('devices-card').style.display = 'block';
+        }
+
+        async function refreshDevices() {
+            if (!currentSession) return;
+
+            setLoading('devices-card', true);
+
             try {
                 const response = await fetch('/api/devices');
                 const result = await response.json();
-                
+
                 if (result.success) {
-                    const deviceSelect = document.getElementById('deviceSelect');
-                    deviceSelect.innerHTML = '<option value="all" selected>All Devices</option>';
-                    
-                    result.devices.forEach(device => {
-                        const option = document.createElement('option');
-                        option.value = device.mac;
-                        option.textContent = `${device.name || 'Unknown Device'} (${device.mac.substring(0, 8)}...)`;
-                        deviceSelect.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to load devices:', error);
-            }
-        }
-
-        async function quickBlock(appType) {
-            const apps = {
-                'fortnite': ['fortnite', 'roblox', 'minecraft'],
-                'youtube': ['youtube', 'tiktok', 'netflix'],
-                'social': ['instagram', 'snapchat', 'discord']
-            };
-            
-            const appsToBlock = apps[appType] || [appType];
-            
-            showStatus(`🚫 Blocking ${appsToBlock.join(', ')}...`, 'info');
-            
-            const rule = {
-                id: Date.now().toString(),
-                apps: appsToBlock,
-                type: 'permanent',
-                devices: ['all'],
-                status: 'active',
-                created: new Date().toISOString()
-            };
-            
-            await createBlockRule(rule);
-        }
-
-        async function createRule() {
-            const apps = Array.from(document.getElementById('appSelect').selectedOptions)
-                .map(option => option.value);
-            const blockType = document.getElementById('blockType').value;
-            const devices = Array.from(document.getElementById('deviceSelect').selectedOptions)
-                .map(option => option.value);
-            
-            if (apps.length === 0) {
-                showStatus('❌ Please select at least one app to block', 'error');
-                return;
-            }
-            
-            const rule = {
-                id: Date.now().toString(),
-                apps: apps,
-                type: blockType,
-                devices: devices.length > 0 ? devices : ['all'],
-                status: 'active',
-                created: new Date().toISOString()
-            };
-            
-            // Add schedule information
-            if (blockType === 'duration') {
-                rule.duration = parseInt(document.getElementById('duration').value);
-                rule.endTime = new Date(Date.now() + rule.duration * 60 * 60 * 1000).toISOString();
-            } else if (blockType === 'until') {
-                rule.endTime = document.getElementById('untilTime').value;
-            } else if (blockType === 'schedule') {
-                rule.scheduleType = document.getElementById('scheduleType').value;
-            }
-            
-            await createBlockRule(rule);
-        }
-
-        async function createBlockRule(rule) {
-            try {
-                activeRules.push(rule);
-                saveRules();
-                displayRules();
-                
-                const response = await fetch('/api/block', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(rule)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showStatus(`✅ Successfully blocked ${rule.apps.join(', ')}`, 'success');
+                    networkDevices = result.devices;
+                    displayDevices(result.devices);
+                    document.getElementById('device-count').textContent = result.devices.length;
                 } else {
-                    showStatus(`❌ Failed to create block: ${result.error}`, 'error');
-                    // Remove from local rules if API call failed
-                    activeRules = activeRules.filter(r => r.id !== rule.id);
-                    saveRules();
-                    displayRules();
+                    showMessage('❌ Failed to load devices', 'error');
                 }
             } catch (error) {
-                showStatus(`❌ Error creating rule: ${error.message}`, 'error');
+                showMessage('❌ Error loading devices: ' + error.message, 'error');
+            } finally {
+                setLoading('devices-card', false);
             }
         }
 
-        async function deleteRule(ruleId) {
-            const rule = activeRules.find(r => r.id === ruleId);
-            if (!rule) return;
+        function displayDevices(devices) {
+            const container = document.getElementById('devices-list');
             
-            if (!confirm(`Remove blocking rule for ${rule.apps.join(', ')}?`)) return;
-            
-            try {
-                const response = await fetch('/api/unblock', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ruleId })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    activeRules = activeRules.filter(r => r.id !== ruleId);
-                    saveRules();
-                    displayRules();
-                    showStatus(`✅ Rule removed successfully`, 'success');
-                } else {
-                    showStatus(`❌ Failed to remove rule: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                showStatus(`❌ Error removing rule: ${error.message}`, 'error');
-            }
-        }
-
-        async function toggleRule(ruleId) {
-            const rule = activeRules.find(r => r.id === ruleId);
-            if (!rule) return;
-            
-            rule.status = rule.status === 'active' ? 'disabled' : 'active';
-            saveRules();
-            displayRules();
-            
-            const action = rule.status === 'active' ? 'enabled' : 'disabled';
-            showStatus(`${rule.status === 'active' ? '🚫' : '✅'} Rule ${action}`, 'success');
-        }
-
-        async function unblockAll() {
-            if (activeRules.length === 0) {
-                showStatus('ℹ️ No active rules to remove', 'info');
+            if (devices.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No devices found</p>';
                 return;
             }
-            
-            if (confirm(`Remove all ${activeRules.length} blocking rules?`)) {
-                try {
-                    const response = await fetch('/api/unblock-all', {
-                        method: 'POST'
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        activeRules = [];
-                        saveRules();
-                        displayRules();
-                        showStatus('✅ All rules removed successfully', 'success');
-                    }
-                } catch (error) {
-                    showStatus(`❌ Error removing all rules: ${error.message}`, 'error');
-                }
-            }
-        }
 
-        function displayRules() {
-            const container = document.getElementById('rulesContainer');
-            
-            if (activeRules.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 48px; color: #64748b;">
-                        <div style="font-size: 3rem; margin-bottom: 16px;">💤</div>
-                        <h3 style="color: #374151; margin-bottom: 8px;">No active rules</h3>
-                        <p>Create your first blocking rule above to get started</p>
+            container.innerHTML = devices.map(device => `
+                <div class="device-card">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                        ${device.name || 'Unknown Device'}
                     </div>
-                `;
-                return;
-            }
-            
-            container.innerHTML = activeRules.map(rule => `
-                <div class="rule-item ${rule.status}">
-                    <div class="rule-header">
-                        <div class="rule-title">
-                            ${rule.apps.map(app => `<span class="app-icon">${appIcons[app] || '📱'}</span>${app.charAt(0).toUpperCase() + app.slice(1)}`).join(', ')}
-                        </div>
-                        <span class="rule-status ${rule.status}">${rule.status}</span>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px;">
+                        📶 ${device.mac}
                     </div>
-                    <div class="schedule-info">
-                        ${getScheduleDescription(rule)}
-                    </div>
-                    <div class="device-list">
-                        ${rule.devices.includes('all') ? 
-                            '<span class="device-tag">All Devices</span>' : 
-                            rule.devices.map(d => `<span class="device-tag">${d.substring(0, 8)}...</span>`).join('')
-                        }
-                    </div>
-                    <div class="rule-actions">
-                        <button class="btn btn-${rule.status === 'active' ? 'warning' : 'success'}" 
-                                onclick="toggleRule('${rule.id}')">
-                            ${rule.status === 'active' ? '⏸️ Pause' : '▶️ Resume'}
-                        </button>
-                        <button class="btn btn-danger" onclick="deleteRule('${rule.id}')">
-                            🗑️ Remove
-                        </button>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                        ${device.type || 'Unknown Manufacturer'}
                     </div>
                 </div>
             `).join('');
         }
 
-        function getScheduleDescription(rule) {
-            switch (rule.type) {
-                case 'permanent':
-                    return '🚫 Blocked permanently';
-                case 'duration':
-                    return `⏱️ Blocked for ${rule.duration} hours`;
-                case 'until':
-                    return `🕐 Blocked until ${new Date(rule.endTime).toLocaleString()}`;
-                case 'schedule':
-                    return `📅 Recurring: ${rule.scheduleType}`;
-                default:
-                    return '';
+        async function refreshRules() {
+            try {
+                const response = await fetch('/api/rules');
+                const result = await response.json();
+
+                if (result.success) {
+                    activeRules = result.rules;
+                    displayRules(result.rules);
+                }
+            } catch (error) {
+                console.error('Error loading rules:', error);
             }
         }
 
-        async function loadRules() {
-            loadSavedRules();
-            displayRules();
+        function displayRules(rules) {
+            const container = document.getElementById('rules-list');
+            
+            if (rules.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No active rules</p>';
+                return;
+            }
+
+            container.innerHTML = rules.map(rule => `
+                <div class="rule-item">
+                    <div class="rule-header">
+                        <div style="font-weight: 600; color: var(--text-primary);">
+                            Rule #${rule.id}
+                        </div>
+                        <button class="btn btn-danger" onclick="removeRule('${rule.id}')" style="padding: 6px 12px; font-size: 0.8rem;">
+                            🗑️ Remove
+                        </button>
+                    </div>
+                    <div class="rule-apps">
+                        ${rule.apps.map(app => `<span class="app-tag">${app}</span>`).join('')}
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                        Type: ${rule.rule_type} | Status: ${rule.status} | Created: ${new Date(rule.created).toLocaleString()}
+                    </div>
+                </div>
+            `).join('');
         }
 
-        function saveRules() {
-            localStorage.setItem('parentalRules', JSON.stringify(activeRules));
+        // Quick action functions
+        function blockGaming() {
+            createQuickRule(['fortnite', 'roblox', 'minecraft', 'twitch', 'discord'], 'Gaming Apps');
         }
 
-        function loadSavedRules() {
-            const saved = localStorage.getItem('parentalRules');
-            if (saved) {
-                activeRules = JSON.parse(saved);
+        function blockSocial() {
+            createQuickRule(['instagram', 'snapchat', 'tiktok'], 'Social Media');
+        }
+
+        function blockVideo() {
+            createQuickRule(['youtube', 'netflix', 'tiktok'], 'Video Streaming');
+        }
+
+        async function createQuickRule(apps, description) {
+            const rule = {
+                id: Date.now().toString(),
+                apps: apps,
+                type: 'permanent',
+                devices: ['all'],
+                status: 'active',
+                created: new Date().toISOString()
+            };
+
+            await submitRule(rule, description);
+        }
+
+        async function handleCreateRule(e) {
+            e.preventDefault();
+
+            const apps = document.getElementById('apps').value.split(',').map(s => s.trim());
+            const type = document.getElementById('rule-type').value;
+            const duration = document.getElementById('duration').value;
+
+            const rule = {
+                id: Date.now().toString(),
+                apps: apps,
+                type: type,
+                devices: ['all'],
+                status: 'active',
+                created: new Date().toISOString()
+            };
+
+            if (type === 'duration' && duration) {
+                rule.duration = parseInt(duration);
+            }
+
+            await submitRule(rule, 'Custom Rule');
+            
+            // Reset form
+            document.getElementById('block-form').reset();
+            document.getElementById('duration-group').style.display = 'none';
+        }
+
+        async function submitRule(rule, description) {
+            setLoading('control-card', true);
+
+            try {
+                const response = await fetch('/api/block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rule)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(`✅ ${description} blocked successfully!`, 'success');
+                    await refreshRules();
+                } else {
+                    showMessage('❌ ' + (result.error || 'Failed to create rule'), 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error creating rule: ' + error.message, 'error');
+            } finally {
+                setLoading('control-card', false);
             }
         }
 
-        function showStatus(message, type) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        async function removeRule(ruleId) {
+            if (!confirm('Are you sure you want to remove this rule?')) return;
+
+            try {
+                const response = await fetch('/api/unblock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ruleId: ruleId })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('✅ Rule removed successfully!', 'success');
+                    await refreshRules();
+                } else {
+                    showMessage('❌ ' + (result.error || 'Failed to remove rule'), 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error removing rule: ' + error.message, 'error');
+            }
+        }
+
+        async function unblockAll() {
+            if (!confirm('Are you sure you want to remove ALL blocking rules?')) return;
+
+            try {
+                const response = await fetch('/api/unblock-all', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('✅ All rules removed successfully!', 'success');
+                    await refreshRules();
+                } else {
+                    showMessage('❌ ' + (result.error || 'Failed to remove all rules'), 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error removing rules: ' + error.message, 'error');
+            }
+        }
+
+        async function syncRules() {
+            try {
+                const response = await fetch('/api/sync', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('✅ Rules synchronized successfully!', 'success');
+                    await refreshRules();
+                } else {
+                    showMessage('❌ ' + (result.error || 'Failed to sync rules'), 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error syncing rules: ' + error.message, 'error');
+            }
+        }
+
+        async function cleanupOrphans() {
+            if (!confirm('Remove orphaned UniFi rules not managed by this tool?')) return;
+
+            try {
+                const response = await fetch('/api/cleanup', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('✅ ' + result.message, 'success');
+                } else {
+                    showMessage('❌ ' + (result.error || 'Failed to cleanup rules'), 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error cleaning up rules: ' + error.message, 'error');
+            }
+        }
+
+        // Utility functions
+        function setLoading(elementId, loading) {
+            const element = document.getElementById(elementId);
+            if (loading) {
+                element.classList.add('loading');
+            } else {
+                element.classList.remove('loading');
+            }
+        }
+
+        function showMessage(text, type) {
+            const messageArea = document.getElementById('message-area');
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${type}`;
+            messageEl.textContent = text;
+            
+            messageArea.appendChild(messageEl);
+            
             setTimeout(() => {
-                statusDiv.innerHTML = '';
+                messageEl.remove();
             }, 5000);
         }
 
-        function showScheduler() {
-            // Scroll to the create rule section
-            document.querySelector('.card:nth-child(3)').scrollIntoView({ 
-                behavior: 'smooth' 
-            });
-            document.getElementById('blockType').value = 'schedule';
-            toggleScheduleOptions();
+        function clearMessages() {
+            document.getElementById('message-area').innerHTML = '';
         }
+
+        // Auto-refresh rules every 30 seconds
+        setInterval(refreshRules, 30000);
     </script>
 </body>
 </html>

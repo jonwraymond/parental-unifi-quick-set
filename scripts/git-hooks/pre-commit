@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Pre-commit hook to encourage frequent, small commits
+# This will warn if commits are getting too large
+
+# Colors
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# Configuration
+MAX_FILES_WARNING=10
+MAX_LINES_WARNING=200
+
+# Count files being committed
+file_count=$(git diff --cached --name-only | wc -l | tr -d ' ')
+
+# Count lines being added/removed
+lines_added=$(git diff --cached --numstat | awk '{sum += $1} END {print sum + 0}')
+lines_removed=$(git diff --cached --numstat | awk '{sum += $2} END {print sum + 0}')
+total_lines=$((lines_added + lines_removed))
+
+echo -e "${GREEN}🔍 Pre-commit check...${NC}"
+
+# Check file count
+if [ "$file_count" -gt "$MAX_FILES_WARNING" ]; then
+    echo -e "${YELLOW}⚠️  Warning: Committing $file_count files${NC}"
+    echo -e "${YELLOW}   Consider breaking this into smaller commits for easier rollback${NC}"
+    echo ""
+fi
+
+# Check line count
+if [ "$total_lines" -gt "$MAX_LINES_WARNING" ]; then
+    echo -e "${YELLOW}⚠️  Warning: Large commit (+$lines_added/-$lines_removed lines)${NC}"
+    echo -e "${YELLOW}   Consider breaking this into smaller, focused commits${NC}"
+    echo ""
+fi
+
+# Check for common patterns that suggest commits should be split
+if git diff --cached --name-only | grep -q "\.rs$" && git diff --cached --name-only | grep -q "\.md$"; then
+    echo -e "${YELLOW}💡 Tip: You're changing both code and docs${NC}"
+    echo -e "${YELLOW}   Consider separate commits: one for code, one for docs${NC}"
+    echo ""
+fi
+
+# Always allow the commit to proceed
+exit 0 

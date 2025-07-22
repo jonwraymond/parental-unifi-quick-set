@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Easy UniFi App Blocker</title>
+    <style>
+        .hidden { display: none; }
+        label { display: block; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Easy UniFi App Blocker</h1>
+    <p>Simple tool to block apps like Fortnite, Roblox, or YouTube on your network. Login first, then create rules.</p>
+    
+    <h2>Step 1: Login to UniFi</h2>
+    <form id="login-form">
+        <label>Username:</label>
+        <input type="text" id="username" placeholder="Your UniFi username" required>
+        <label>Password:</label>
+        <input type="password" id="password" placeholder="Your UniFi password" required>
+        <button type="submit">Login</button>
+    </form>
+    
+    <h2>Step 2: Create a Blocking Rule</h2>
+    <form id="rule-form">
+        <label>Apps to Block:</label>
+        <select id="apps" multiple required>
+            <option value="Fortnite">Fortnite</option>
+            <option value="Roblox">Roblox</option>
+            <option value="YouTube">YouTube</option>
+            <!-- Add more options here if needed -->
+        </select>
+        <p>Hold Ctrl (Windows) or Cmd (Mac) to select multiple.</p>
+        
+        <label>Block Type:</label>
+        <input type="radio" id="permanent" name="block_type" value="permanent" checked> Permanent (always blocked)<br>
+        <input type="radio" id="hourly" name="block_type" value="hourly"> Block for a specific duration (e.g., 1 hour)<br>
+        <input type="radio" id="until" name="block_type" value="until"> Block until a specific time (e.g., 4:30 PM)<br>
+        <input type="radio" id="recurring" name="block_type" value="recurring"> Recurring schedule (daily/weekly)
+        
+        <div id="hourly-fields" class="hidden">
+            <label>Duration (hours):</label>
+            <input type="number" id="duration_hours" placeholder="1" min="0.5" step="0.5" required>
+        </div>
+        
+        <div id="until-fields" class="hidden">
+            <label>Until Time (HH:MM):</label>
+            <input type="text" id="until_time" placeholder="16:30" required>
+        </div>
+        
+        <div id="recurring-fields" class="hidden">
+            <label>Days (comma-separated, e.g., monday,tuesday or all):</label>
+            <input type="text" id="recurring_days" placeholder="monday,tuesday" required>
+            <label>Start Time (HH:MM):</label>
+            <input type="text" id="recurring_start" placeholder="21:00" required>
+            <label>End Time (HH:MM):</label>
+            <input type="text" id="recurring_end" placeholder="08:00" required>
+        </div>
+        
+        <label>Networks to Block On:</label>
+        <select id="networks" multiple required></select>
+        <p>Networks will load after login.</p>
+        
+        <label>Devices to Block:</label>
+        <select id="devices" multiple required></select>
+        <p>Devices will load after login. Select by name; blocks by MAC.</p>
+        
+        <button type="submit">Create Rule</button>
+    </form>
+    
+    <div id="response"></div>
+    
+    <script>
+        // Handle form visibility based on block type
+        const blockTypes = document.querySelectorAll('input[name="block_type"]');
+        blockTypes.forEach(type => {
+            type.addEventListener('change', () => {
+                document.getElementById('hourly-fields').classList.add('hidden');
+                document.getElementById('until-fields').classList.add('hidden');
+                document.getElementById('recurring-fields').classList.add('hidden');
+                if (type.value === 'hourly') document.getElementById('hourly-fields').classList.remove('hidden');
+                if (type.value === 'until') document.getElementById('until-fields').classList.remove('hidden');
+                if (type.value === 'recurring') document.getElementById('recurring-fields').classList.remove('hidden');
+            });
+        });
+
+        // Fetch and populate networks and devices after login
+        async function loadData() {
+            const networksRes = await fetch('/api/networks');
+            const networks = await networksRes.json();
+            const networkSelect = document.getElementById('networks');
+            networkSelect.innerHTML = '';
+            networks.forEach(net => {
+                const option = document.createElement('option');
+                option.value = net.vlan_id || net.name;  // Use VLAN or name
+                option.textContent = net.name + (net.vlan_id ? ` (VLAN ${net.vlan_id})` : '');
+                networkSelect.appendChild(option);
+            });
+
+            const clientsRes = await fetch('/api/clients');
+            const clients = await clientsRes.json();
+            const deviceSelect = document.getElementById('devices');
+            deviceSelect.innerHTML = '';
+            clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.mac;
+                option.textContent = client.hostname || client.mac;
+                deviceSelect.appendChild(option);
+            });
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+            const text = await res.text();
+            document.getElementById('response').innerText = text;
+            if (res.ok) loadData();  // Load networks and devices on successful login
+        });
+
+        document.getElementById('rule-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const appsSelect = document.getElementById('apps');
+            const apps = Array.from(appsSelect.selectedOptions).map(option => option.value);
+            const block_type = document.querySelector('input[name="block_type"]:checked').value;
+            const duration_hours = document.getElementById('duration_hours').value || null;
+            const until_time = document.getElementById('until_time').value || null;
+            const recurring_days = document.getElementById('recurring_days').value ? document.getElementById('recurring_days').value.split(',') : null;
+            const recurring_start = document.getElementById('recurring_start').value || null;
+            const recurring_end = document.getElementById('recurring_end').value || null;
+            const networksSelect = document.getElementById('networks');
+            const networks = Array.from(networksSelect.selectedOptions).map(option => option.value);
+            const devicesSelect = document.getElementById('devices');
+            const devices = Array.from(devicesSelect.selectedOptions).map(option => option.value);
+
+            const res = await fetch('/api/create_rule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apps, block_type, duration_hours, until_time, recurring_days, recurring_start, recurring_end, networks, devices }),
+            });
+            document.getElementById('response').innerText = await res.text();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+/Users/jraymond/Projects/Parental\ Unifi\ Quick\ Set/target/release/parental-unifi-quick-set: /Users/jraymond/Projects/Parental\ Unifi\ Quick\ Set/index.html /Users/jraymond/Projects/Parental\ Unifi\ Quick\ Set/src/main.rs

@@ -1,13 +1,13 @@
 # Build stage
-FROM rust:1.75-alpine AS builder
+FROM rust:1-alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache musl-dev
+RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig
 
 WORKDIR /app
 
 # Copy manifests
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
 
 # Build dependencies - this is cached separately
 RUN mkdir src && echo "fn main() {}" > src/main.rs
@@ -25,7 +25,7 @@ RUN cargo build --release
 FROM alpine:latest
 
 # Install runtime dependencies
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates openssl
 
 WORKDIR /app
 
